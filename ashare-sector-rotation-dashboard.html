@@ -346,6 +346,12 @@ footer{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-si
 .bt-kpi .v{font-size:16.5px;font-weight:640;margin-top:4px;font-family:var(--mono);letter-spacing:-.2px}
 .bt-kpi .s{font-size:10px;color:var(--dim2);margin-top:2px;font-family:var(--mono)}
 .bt-note{font-size:11px;color:var(--dim2);line-height:1.8;margin-top:10px;padding:0 2px}
+.bt-legend{display:flex;flex-wrap:wrap;align-items:center;gap:15px;padding:10px 14px 0;font-size:10.5px;color:var(--dim2);font-family:var(--mono)}
+.bt-legend i{display:inline-block;margin-right:5px;vertical-align:1px}
+.bt-legend i.tri{width:0;height:0;border-left:4.5px solid transparent;border-right:4.5px solid transparent}
+.bt-legend i.buy{border-bottom:9px solid #22d3ee}
+.bt-legend i.sell{border-top:9px solid #00c896}
+.bt-legend i.band{width:12px;height:9px;border-radius:2px;background:rgba(255,77,90,.16);vertical-align:0}
 .bt-tblwrap{max-height:340px;overflow:auto;border-radius:0 0 11px 11px}
 table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:var(--mono);white-space:nowrap}
 .bt-tbl th{position:sticky;top:0;background:#0c1117;color:var(--dim2);font-weight:500;font-size:10.5px;letter-spacing:.5px;padding:9px 12px;text-align:right;border-bottom:1px solid var(--line2);z-index:2}
@@ -745,7 +751,14 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
       <canvas id="btEquity" style="display:block;width:100%;height:240px"></canvas>
     </div>
     <div class="panel" style="margin-top:14px">
-      <canvas id="btChart" style="display:block;width:100%;height:300px"></canvas>
+      <canvas id="btChart" style="display:block;width:100%;height:330px"></canvas>
+      <div class="bt-legend">
+        <span><i class="tri buy"></i>买入（▲ 标在最低价下方，注成交价）</span>
+        <span><i class="tri sell"></i>卖出（▼ 标在最高价上方，注成交价与盈亏）</span>
+        <span><i class="band"></i>持仓区间底色（红=盈利 绿=亏损）</span>
+        <span style="color:var(--dim2)">鼠标移到 ▲/▼ 上看该笔明细</span>
+        <button type="button" class="mini" id="btLblTog" style="margin-left:auto">价签 · 开</button>
+      </div>
     </div>
     <div class="panel" style="margin-top:14px">
       <div style="padding:11px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--dim)" id="btTradesHead">交易明细</div>
@@ -2672,7 +2685,7 @@ async function refreshSectors(){
    预览面板等嵌入环境可能限制外部脚本/请求；一旦全源不通，明确告知原因，
    而不是让用户以为页面坏了。
    ========================================================================== */
-const BUILD_TAG = 'BUILD 11-16 23:44';
+const BUILD_TAG = 'BUILD 11-16 23:50';
 let envChecked = false, envRunning = false;
 
 function selfPath(){
@@ -2931,6 +2944,7 @@ function btBind(){
   btRenderQuick();
   btBindSearch();
   btCodeInit();
+  btChartHover();
   btStratUI();
 }
 
@@ -3668,9 +3682,11 @@ function btDrawEquity(R){
   ctx.fillText('--- 买入持有', W - 62, T + 4);
 }
 
-function btDrawChart(R){
-  const cv = $('btChart'), c = btCanvas(cv, 300), ctx = c.ctx, W = c.w, H = c.h;
-  const L = 58, Rp = 62, T = 12, B = 22;
+function btDrawChart(R, mouseX, mouseY){
+  const cv = $('btChart');
+  if (!cv) return;
+  const c = btCanvas(cv, 330), ctx = c.ctx, W = c.w, H = c.h;
+  const L = 58, Rp = 62, T = 26, B = 42;
   const pw = W - L - Rp, ph = H - T - B;
   const bars = R.bars, n = R.n, w0 = Math.max(0, R.warm - 5);
   const ema = emaArr(bars.map(function(b){ return b.c; }), 20);
@@ -3681,6 +3697,9 @@ function btDrawChart(R){
   const X = i => L + (i - w0 + 0.5) / cnt * pw;
   const Y = v => T + (1 - (v - lo) / (hi - lo)) * ph;
   const bw = Math.max(1.2, pw / cnt * 0.62);
+  const dec = hi < 10 ? 3 : 2;
+  BT.R = R;
+  BT._chartGeom = { L: L, Rp: Rp, pw: pw, cnt: cnt, w0: w0, n: n };
 
   ctx.strokeStyle = '#141c29'; ctx.lineWidth = 1;
   ctx.font = '10px "JetBrains Mono",monospace'; ctx.fillStyle = '#54637a';
@@ -3693,6 +3712,14 @@ function btDrawChart(R){
     const i = Math.round(w0 + (cnt - 1) * g / 6);
     ctx.fillText(bars[i].d.slice(2), X(i) - 14, H - 6);
   }
+
+  /* ---- 持仓区间：图形下沿的彩带（红=该笔盈利 绿=亏损），不压K线 ---- */
+  const ribY = T + ph + 4;
+  R.trades.forEach(function(t){
+    ctx.fillStyle = t.pnl > 0 ? 'rgba(255,77,90,.7)' : 'rgba(0,200,150,.7)';
+    ctx.fillRect(X(t.i0), ribY, Math.max(1.5, X(t.i1) - X(t.i0)), 3.4);
+  });
+
   /* 蜡烛：涨红跌绿 */
   for (let i = w0; i < n; i++){
     const b = bars[i], up = b.c >= b.o;
@@ -3714,23 +3741,144 @@ function btDrawChart(R){
     started = true;
   }
   ctx.stroke();
-  /* 交易标记：▲入场 ▼出场 */
+
+  /* ================================================================
+     交易标记：▲ 买入 / ▼ 卖出，带成交价与盈亏标签
+     标签自动避让——先试「卖 13.45 +8.2%」，放不下退到「卖 13.45」，再退到「卖」
+     ================================================================ */
+  const topLim = T - 8, botLim = H - B + 26;
+  const boxes = [];
+  function free(x0, x1, y){
+    for (let k = 0; k < boxes.length; k++){
+      const q = boxes[k];
+      if (x0 < q.x1 + 4 && x1 > q.x0 - 4 && Math.abs(y - q.y) < 11) return false;
+    }
+    return true;
+  }
+  ctx.font = '9.5px "JetBrains Mono",monospace';
+  function putLabel(cands, x, yBase, dir, color){
+    for (let ci = 0; ci < cands.length; ci++){
+      const txt = cands[ci];
+      const tw = ctx.measureText(txt).width;
+      const x0 = Math.max(L + 1, Math.min(W - Rp - tw - 1, x - tw / 2));
+      for (let row = 0; row < 5; row++){
+        const y = yBase + dir * row * 11.5;
+        if (y < topLim || y > botLim) break;
+        if (!free(x0, x0 + tw, y)) continue;
+        boxes.push({ x0: x0, x1: x0 + tw, y: y, ci: ci });
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(6,9,14,.86)';
+        ctx.strokeText(txt, x0, y);          /* 深色描边，压在K线上也读得清 */
+        ctx.fillStyle = color;
+        ctx.fillText(txt, x0, y);
+        return true;
+      }
+    }
+    return false;
+  }
+  function tri(x, y, up, color){
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    if (up){ ctx.moveTo(x, y); ctx.lineTo(x - 4.6, y + 8); ctx.lineTo(x + 4.6, y + 8); }
+    else   { ctx.moveTo(x, y); ctx.lineTo(x - 4.6, y - 8); ctx.lineTo(x + 4.6, y - 8); }
+    ctx.closePath(); ctx.fill();
+  }
+
+  /* 先画所有三角，再画标签，保证标签在最上层 */
   R.trades.forEach(function(t){
-    ctx.fillStyle = '#22d3ee';
-    ctx.beginPath();
-    ctx.moveTo(X(t.i0), Y(bars[t.i0].l) + 12);
-    ctx.lineTo(X(t.i0) - 4, Y(bars[t.i0].l) + 20);
-    ctx.lineTo(X(t.i0) + 4, Y(bars[t.i0].l) + 20);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = t.pnl > 0 ? '#ff4d5a' : '#00c896';
-    ctx.beginPath();
-    ctx.moveTo(X(t.i1), Y(bars[t.i1].h) - 12);
-    ctx.lineTo(X(t.i1) - 4, Y(bars[t.i1].h) - 20);
-    ctx.lineTo(X(t.i1) + 4, Y(bars[t.i1].h) - 20);
-    ctx.closePath(); ctx.fill();
+    const b0 = bars[t.i0], b1 = bars[t.i1];
+    const win = t.pnl >= 0;
+    tri(X(t.i0), Y(b0.l) + 7, true, '#22d3ee');
+    tri(X(t.i1), Y(b1.h) - 7, false, win ? '#ff4d5a' : '#00c896');
   });
-  ctx.font = '10.5px "JetBrains Mono",monospace'; ctx.fillStyle = '#f5b93b';
-  ctx.fillText('— EMA20', W - Rp + 8, T + 4);
+  if (BT.showLbl !== false) R.trades.forEach(function(t){
+    const b0 = bars[t.i0], b1 = bars[t.i1];
+    const win = t.pnl >= 0;
+    const pct = (t.x / t.e - 1) * 100;
+    const ps = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+    const sellCol = win ? '#ff4d5a' : '#00c896';
+    putLabel(['买 ' + t.e.toFixed(dec), '买'], X(t.i0), Y(b0.l) + 26, 1, '#22d3ee');
+    putLabel(['卖 ' + t.x.toFixed(dec) + ' ' + ps, '卖 ' + t.x.toFixed(dec), '卖'],
+             X(t.i1), Y(b1.h) - 20, -1, sellCol);
+  });
+
+  /* 角标图例 */
+  ctx.font = '10.5px "JetBrains Mono",monospace';
+  ctx.fillStyle = '#f5b93b';
+  ctx.fillText('— EMA20', W - Rp + 8, T - 12);
+
+  /* ---- 悬停：靠近 ▲/▼ 显示该笔明细 ---- */
+  if (typeof mouseX === 'number' && isFinite(mouseX)){
+    let hit = null, best = 11;
+    R.trades.forEach(function(t){
+      const d0 = Math.abs(mouseX - X(t.i0)), d1 = Math.abs(mouseX - X(t.i1));
+      if (d0 < best){ best = d0; hit = { t: t, side: 'buy' }; }
+      if (d1 < best){ best = d1; hit = { t: t, side: 'sell' }; }
+    });
+    if (hit && mouseY >= T - 12 && mouseY <= H - B + 28){
+      const t = hit.t, pct = (t.x / t.e - 1) * 100;
+      const col = t.pnl >= 0 ? '#ff4d5a' : '#00c896';
+      const lines = [
+        ['买 ' + t.d0 + '  @ ' + t.e.toFixed(dec), '#22d3ee'],
+        ['卖 ' + t.d1 + '  @ ' + t.x.toFixed(dec), t.pnl >= 0 ? '#ff4d5a' : '#00c896'],
+        [(pct >= 0 ? '+' : '') + pct.toFixed(2) + '%   ' +
+         (t.pnl >= 0 ? '+' : '-') + Math.abs(t.pnl).toFixed(0) + ' 元', col],
+        ['持有 ' + (t.i1 - t.i0) + ' 根 K 线 · ' + t.reason, '#8291a6']
+      ];
+      ctx.font = '10px "JetBrains Mono",monospace';
+      let bwid = 0;
+      lines.forEach(function(l){ bwid = Math.max(bwid, ctx.measureText(l[0]).width); });
+      bwid += 16;
+      const bh = lines.length * 14 + 10;
+      let bx = X(hit.side === 'buy' ? t.i0 : t.i1) + 10;
+      if (bx + bwid > W - Rp) bx = X(hit.side === 'buy' ? t.i0 : t.i1) - 10 - bwid;
+      if (bx < L) bx = L;
+      let by = Y(hit.side === 'buy' ? bars[t.i0].l : bars[t.i1].h) - bh - 14;
+      if (by < T) by = Y(hit.side === 'buy' ? bars[t.i0].l : bars[t.i1].h) + 20;
+      by = Math.max(T, Math.min(H - B - bh + 6, by));
+      ctx.fillStyle = 'rgba(9,13,19,.96)';
+      ctx.strokeStyle = 'rgba(120,140,170,.4)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      const rr = 6;
+      ctx.moveTo(bx + rr, by);
+      ctx.arcTo(bx + bwid, by, bx + bwid, by + bh, rr);
+      ctx.arcTo(bx + bwid, by + bh, bx, by + bh, rr);
+      ctx.arcTo(bx, by + bh, bx, by, rr);
+      ctx.arcTo(bx, by, bx + bwid, by, rr);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      lines.forEach(function(l, k){
+        ctx.fillStyle = l[1];
+        ctx.fillText(l[0], bx + 8, by + 17 + k * 14);
+      });
+    }
+  }
+}
+
+/* 回测 K 线悬停明细 */
+function btChartHover(){
+  const cv = $('btChart');
+  if (!cv || cv._hoverBound) return;
+  cv._hoverBound = true;
+  cv.addEventListener('mousemove', function(ev){
+    if (!BT.R) return;
+    const r = cv.getBoundingClientRect();
+    btDrawChart(BT.R, ev.clientX - r.left, ev.clientY - r.top);
+  });
+  cv.addEventListener('mouseleave', function(){
+    if (BT.R) btDrawChart(BT.R);
+  });
+  window.addEventListener('resize', function(){
+    clearTimeout(cv._rt);
+    cv._rt = setTimeout(function(){ if (BT.R) btDrawChart(BT.R); }, 160);
+  });
+  const tog = $('btLblTog');
+  if (tog){
+    tog.addEventListener('click', function(){
+      BT.showLbl = (BT.showLbl === false);
+      tog.textContent = '价签 · ' + (BT.showLbl ? '开' : '关');
+      if (BT.R) btDrawChart(BT.R);
+    });
+  }
 }
 
 async function boot(){
