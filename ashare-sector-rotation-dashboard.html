@@ -301,6 +301,8 @@ footer{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-si
 .pagenav button.on{color:var(--cyan);border-color:rgba(34,211,238,.42);background:rgba(34,211,238,.09)}
 
 /* ===== 回测工作台 ===== */
+/* .panel 默认 overflow:hidden 会把绝对定位的下拉建议框裁掉，搜索可见面板必须放开 */
+.panel.kb,.bt-panel{overflow:visible}
 .bt-panel{padding:0}
 .bt-bar{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .bt-bar .search-wrap{max-width:340px;min-width:220px;flex:1}
@@ -311,6 +313,13 @@ footer{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-si
 .bt-cfg .f input:focus,.bt-cfg .f select:focus{border-color:rgba(34,211,238,.4)}
 .bt-cfg .f label{display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:var(--dim)}
 .bt-cfg .f.hide{display:none}
+.bt-quick{display:flex;align-items:center;gap:8px;padding:9px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.bt-quick .lb{font-size:10.5px;color:var(--dim2);letter-spacing:.4px;font-family:var(--mono);flex:none}
+.bt-quick .chips{display:flex;gap:6px;flex-wrap:wrap}
+.bt-chip{font-size:11px;padding:3px 9px;border:1px solid var(--line2);border-radius:5px;background:rgba(255,255,255,.02);color:var(--dim);cursor:pointer;transition:color .15s,border-color .15s,background .15s;font-family:var(--mono)}
+.bt-chip:hover{color:var(--cyan);border-color:rgba(34,211,238,.45);background:rgba(34,211,238,.08)}
+.bt-chip.on{color:var(--cyan);border-color:rgba(34,211,238,.5);background:rgba(34,211,238,.1)}
+.bt-quick .hint{font-size:10.5px;color:var(--dim2);margin-left:auto}
 .bt-cfg .f input[type=checkbox]{-webkit-appearance:none;appearance:none;width:15px;height:15px;margin:0;flex:none;
   border:1px solid var(--line2);border-radius:4px;background:#0b1017;cursor:pointer;position:relative;transition:.15s}
 .bt-cfg .f input[type=checkbox]:checked{background:rgba(34,211,238,.16);border-color:rgba(34,211,238,.55)}
@@ -663,6 +672,11 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
           <button data-len="500">500根</button>
           <button data-len="800">800根</button>
         </div>
+      </div>
+      <div class="bt-quick">
+        <span class="lb">快速切换</span>
+        <div class="chips" id="btQuick"></div>
+        <span class="hint">输入代码 / 名称 / 拼音，↑↓ 选择，↵ 回车或点选即切换</span>
       </div>
       <div class="bt-cfg">
         <div class="f">
@@ -1172,7 +1186,10 @@ function pickSuggest(i){
 
 function bindSearch(){
   const q = $('q');
-  q.addEventListener('input', debounceSearch);
+  let comp = false;
+  q.addEventListener('compositionstart', () => { comp = true; });
+  q.addEventListener('compositionend', () => { comp = false; debounceSearch(); });
+  q.addEventListener('input', () => { if (!comp) debounceSearch(); });
   q.addEventListener('focus', () => { if (sgData.length) $('sg').classList.add('on'); });
   q.addEventListener('blur', () => setTimeout(() => $('sg').classList.remove('on'), 160));
   q.addEventListener('keydown', e => {
@@ -2095,7 +2112,7 @@ async function refreshSectors(){
    预览面板等嵌入环境可能限制外部脚本/请求；一旦全源不通，明确告知原因，
    而不是让用户以为页面坏了。
    ========================================================================== */
-const BUILD_TAG = 'BUILD 11-16 23:20';
+const BUILD_TAG = 'BUILD 11-16 23:26';
 let envChecked = false, envRunning = false;
 
 function selfPath(){
@@ -2351,6 +2368,7 @@ function btBind(){
     b.classList.add('on'); BT.len = +b.getAttribute('data-len');
     if (BT.loaded) btLoad();
   });
+  btRenderQuick();
   btBindSearch();
   btStratUI();
 }
@@ -2362,31 +2380,58 @@ function btStratUI(){
   $('btFN').classList.toggle('hide', !(s === 'breakout' || s === 'retest'));
 }
 
+/* 6 位代码 → secid（6 开头沪市，4/8 开头北交所，其余深市） */
+function btSecidOf(code){
+  return (/^6/.test(code) ? '1.' : '0.') + code;
+}
+
+/* 统一的切换入口：任何路径都走这里，保证按钮态与输入框同步 */
+function btPick(secid, code, name){
+  if (!secid || !code) return;
+  BT.secid = secid; BT.code = String(code); BT.name = name || String(code);
+  $('btQ').value = BT.name;
+  btMarkQuick();
+  btLoad();
+}
+
 function btUseCur(){
   if (!state.code) return;
-  BT.secid = state.secid; BT.code = state.code; BT.name = state.name;
-  $('btQ').value = state.name;
-  btLoad();
+  btPick(state.secid, state.code, state.name);
+}
+
+/* 快速切换：常用标的，零网络依赖，搜索服务不可达时也能换 */
+const BT_QUICK = [
+  ['601899','紫金矿业'],['600519','贵州茅台'],['300750','宁德时代'],['002594','比亚迪'],
+  ['601127','赛力斯'],['600036','招商银行'],['000858','五粮液'],['601318','中国平安'],
+  ['000001','平安银行'],['600030','中信证券']
+];
+function btMarkQuick(){
+  document.querySelectorAll('#btQuick .bt-chip').forEach(function(el){
+    el.classList.toggle('on', el.getAttribute('data-c') === BT.code);
+  });
+}
+function btRenderQuick(){
+  const box = $('btQuick');
+  if (!box) return;
+  box.innerHTML = BT_QUICK.map(function(x){
+    return '<button type="button" class="bt-chip" data-c="' + x[0] + '">' + x[1] + '</button>';
+  }).join('');
+  box.addEventListener('click', function(e){
+    const b = e.target.closest('.bt-chip');
+    if (!b) return;
+    const c = b.getAttribute('data-c');
+    const hit = BT_QUICK.filter(function(x){ return x[0] === c; })[0];
+    btPick(btSecidOf(c), c, hit ? hit[1] : c);
+  });
 }
 
 /* 深链标的：6 位代码直接换算市场，其他关键词走搜索 */
 async function btSetTarget(kw){
   if (!kw) return;
-  if (/^\d{6}$/.test(kw)){
-    BT.code = kw;
-    BT.secid = (/^[6]/.test(kw) ? '1.' : /^[48]/.test(kw) ? '0.' : '0.') + kw;
-    BT.name = kw;
-    $('btQ').value = kw;
-    btLoad();
-    return;
-  }
+  if (/^\d{6}$/.test(kw)){ btPick(btSecidOf(kw), kw, kw); return; }
   try {
     const list = await txSearch(kw);
-    if (list.length){
-      BT.secid = list[0].secid; BT.code = list[0].Code; BT.name = list[0].Name;
-      $('btQ').value = list[0].Name;
-      btLoad();
-    }
+    if (list.length) btPick(list[0].secid, list[0].Code, list[0].Name);
   } catch(e){}
 }
 
@@ -2413,8 +2458,9 @@ async function btLoad(){
     $('btInfo').innerHTML = '<b style="color:var(--txt)">' + BT.name + ' ' + BT.code + '</b>'
       + ' · ' + b0.d + ' ~ ' + b1.d + ' · ' + BT.bars.length + ' 根'
       + (BT.klt === 101 ? '日K' : BT.klt === 102 ? '周K' : '月K') + ' · 前复权 · 就绪';
-    /* 深链：?page=bt&run=1 加载完成即自动运行 */
+    /* 深链：?page=bt&run=1 加载完成即自动运行；已出过结果的，切换标的后自动重跑 */
     if (/[?&]run=1/.test(location.search)) setTimeout(btRun, 60);
+    else if ($('btResSec') && $('btResSec').style.display !== 'none') setTimeout(btRun, 80);
   } catch(e){
     if (seq !== btLoadSeq) return;
     BT.loaded = false;
@@ -2424,41 +2470,105 @@ async function btLoad(){
 }
 
 /* ---- 标的搜索（复用腾讯 smartbox） ---- */
-let btSgTimer = null, btSgData = [];
+let btSgTimer = null, btSgData = [], btSgIdx = -1, btSgSeq = 0, btComp = false;
+
 function btBindSearch(){
   const inp = $('btQ'), box = $('btSg');
-  inp.addEventListener('input', function(){
-    clearTimeout(btSgTimer);
-    btSgTimer = setTimeout(btDoSearch, 260);
+  if (!inp || !box) return;
+  /* 中文输入法：拼音阶段不触发搜索，上屏后再搜 */
+  inp.addEventListener('compositionstart', function(){ btComp = true; });
+  inp.addEventListener('compositionend', function(){
+    btComp = false; clearTimeout(btSgTimer);
+    btSgTimer = setTimeout(btDoSearch, 120);
   });
-  inp.addEventListener('blur', function(){ setTimeout(function(){ box.classList.remove('on'); }, 200); });
-  inp.addEventListener('keydown', function(e){ if (e.key === 'Escape') box.classList.remove('on'); });
+  inp.addEventListener('input', function(){
+    if (btComp) return;
+    clearTimeout(btSgTimer);
+    btSgTimer = setTimeout(btDoSearch, 240);
+  });
+  inp.addEventListener('focus', function(){ if (btSgData.length) box.classList.add('on'); });
+  inp.addEventListener('blur', function(){ setTimeout(function(){ box.classList.remove('on'); }, 180); });
+  inp.addEventListener('keydown', function(e){
+    const items = box.querySelectorAll('.sg-i');
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      if (!items.length) return;
+      e.preventDefault();
+      btSgIdx = Math.max(0, Math.min(items.length - 1, btSgIdx + (e.key === 'ArrowDown' ? 1 : -1)));
+      items.forEach(function(el, i){ el.classList.toggle('act', i === btSgIdx); });
+      return;
+    }
+    if (e.key === 'Enter'){
+      e.preventDefault();
+      clearTimeout(btSgTimer);
+      const v = inp.value.trim();
+      if (btSgIdx >= 0 && btSgData[btSgIdx]) btTakeSug(btSgData[btSgIdx]);
+      else if (btSgData.length) btTakeSug(btSgData[0]);
+      else if (!v){ return; }
+      else if (/^\d{6}$/.test(v)) btPick(btSecidOf(v), v, v);
+      else btResolve(v);
+      return;
+    }
+    if (e.key === 'Escape'){ box.classList.remove('on'); btSgIdx = -1; }
+  });
   box.addEventListener('mousedown', function(e){ e.preventDefault(); });
 }
+
+function btTakeSug(it){
+  if (!it) return;
+  $('btSg').classList.remove('on');
+  btSgIdx = -1;
+  btPick(it.secid, it.Code, it.Name);
+}
+
+/* 名称 / 拼音：回车直接搜索取第一条并切换 */
+async function btResolve(kw){
+  $('btInfo').innerHTML = '<span style="color:var(--cyan)">正在搜索「' + kw + '」…</span>';
+  try {
+    const list = await txSearch(kw);
+    if (list.length){ btTakeSug(list[0]); return; }
+    $('btInfo').innerHTML = '<span style="color:var(--amber)">没找到「' + kw + '」：换个关键词，或直接输入 6 位代码后回车</span>';
+  } catch(e){
+    $('btInfo').innerHTML = '<span style="color:var(--amber)">搜索服务不可达（'
+      + (e && e.message ? e.message : 'network') + '）：请直接输入 6 位代码后回车，或用上方「快速切换」</span>';
+  }
+}
+
+function btSgRender(){
+  const box = $('btSg');
+  if (!btSgData.length){ box.classList.remove('on'); return; }
+  btSgIdx = -1;
+  box.innerHTML = btSgData.map(function(x, i){
+    return '<div class="sg-i" data-i="' + i + '"><span class="c">' + x.Code + '</span>'
+      + '<span class="n">' + x.Name + '</span><span class="m">' + (x.SecurityTypeName || '') + '</span></div>';
+  }).join('');
+  box.classList.add('on');
+  box.querySelectorAll('.sg-i').forEach(function(el){
+    el.addEventListener('mousedown', function(ev){
+      ev.preventDefault();
+      btTakeSug(btSgData[+el.getAttribute('data-i')]);
+    });
+  });
+}
+
 async function btDoSearch(){
   const q = $('btQ').value.trim(), box = $('btSg');
-  if (!q){ box.classList.remove('on'); return; }
+  if (!q){ box.classList.remove('on'); btSgData = []; return; }
+  const seq = ++btSgSeq;
+  const isCode = /^\d{6}$/.test(q);
+  /* 纯代码先在本地给出可点候选，网络只用于补名称，失败也不挡切换 */
+  if (isCode){
+    btSgData = [{ secid: btSecidOf(q), Code: q, Name: q, SecurityTypeName: '回车直接切换' }];
+    btSgRender();
+  }
   try {
     const list = await txSearch(q);
-    btSgData = list.slice(0, 9);
-    if (!btSgData.length){ box.classList.remove('on'); return; }
-    box.innerHTML = btSgData.map(function(x, i){
-      return '<div class="sg-i" data-i="' + i + '"><span class="c">' + x.Code + '</span>'
-        + '<span class="n">' + x.Name + '</span><span class="m">' + (x.SecurityTypeName || '') + '</span></div>';
-    }).join('');
-    box.classList.add('on');
-    box.querySelectorAll('.sg-i').forEach(function(el){
-      el.addEventListener('mousedown', function(ev){
-        ev.preventDefault();
-        const it = btSgData[+el.getAttribute('data-i')];
-        if (!it) return;
-        box.classList.remove('on');
-        BT.secid = it.secid; BT.code = it.Code; BT.name = it.Name;
-        $('btQ').value = it.Name;
-        btLoad();
-      });
-    });
-  } catch(e){ box.classList.remove('on'); }
+    if (seq !== btSgSeq) return;             /* 输入已变，丢弃过期结果 */
+    if (list.length){ btSgData = list.slice(0, 9); btSgRender(); }
+    else if (!isCode){ btSgData = []; box.classList.remove('on'); }
+  } catch(e){
+    if (seq !== btSgSeq) return;
+    if (!isCode){ btSgData = []; box.classList.remove('on'); }
+  }
 }
 
 /* ---- 指标 ---- */
