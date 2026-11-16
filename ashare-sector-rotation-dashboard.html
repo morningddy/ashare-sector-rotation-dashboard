@@ -715,7 +715,8 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
       <div class="bt-code" id="btCodeWrap" style="display:none">
         <div class="bt-code-hd">
           <span class="lb">✎ 自定义策略脚本 —— 定义 <b>buy(i)</b> 与 <b>sell(i, pos)</b></span>
-          <button type="button" class="mini" id="btCodeDemo">载入示例</button>
+          <button type="button" class="mini" id="btCodeDemo">示例:突破/金叉</button>
+          <button type="button" class="mini" id="btCodeMkdj">MACD+KDJ共振</button>
           <button type="button" class="mini" id="btCodeReset">恢复默认</button>
           <span class="stat" id="btCodeStat"></span>
         </div>
@@ -723,6 +724,7 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
         <div class="bt-code-tip">
           每根 K 线收盘时评估，环境变量：<b>C/O/H/L/V[i]</b> 收开高低量、<b>D[i]</b> 日期（如 '2026-11-16'）、
           <b>EMA(i,n)</b> 均线、<b>ATR(i,n)</b> 真实波幅、<b>HH(i,n)/LL(i,n)</b> 前 n 根最高/最低（不含当日）、
+          <b>MACD(i)</b>={dif,dea,bar}、<b>KDJ(i[,n])</b>={k,d,j}、
           sell 里 <b>pos</b> = { entry 入场价, i 入场下标, sh 股数, stop 止损位, tp 止盈位 }。
           信号收盘确认 → 次日开盘成交（T+1）；上方 ATR / 止损 / 止盈参数对自定义策略同样生效（填 0 关闭）。
           脚本保存在本机浏览器，下次打开仍在。
@@ -2670,7 +2672,7 @@ async function refreshSectors(){
    预览面板等嵌入环境可能限制外部脚本/请求；一旦全源不通，明确告知原因，
    而不是让用户以为页面坏了。
    ========================================================================== */
-const BUILD_TAG = 'BUILD 11-16 23:36';
+const BUILD_TAG = 'BUILD 11-16 23:44';
 let envChecked = false, envRunning = false;
 
 function selfPath(){
@@ -3158,6 +3160,42 @@ function btCodeStat(msg, bad){
   el.textContent = msg || '';
   el.style.color = bad ? 'var(--amber)' : 'var(--dim2)';
 }
+
+/* 模板：MACD + KDJ 双金叉共振 */
+const BT_MKDJ = [
+  '/* ✎ MACD + KDJ 双金叉共振买入，任一死叉卖出',
+  '   MACD(i) → { dif, dea, bar }   DIF=EMA12-EMA26，DEA=DIF的EMA9',
+  '   KDJ(i)  → { k, d, j }        默认 9,3,3，可写 KDJ(i, 5) 改周期',
+  '   共振窗口 R=3：两个金叉在 3 根内先后出现即算共振（改成 1 = 同日双金叉） */',
+  '',
+  'var R = 3;                                  /* 共振窗口，可调 */',
+  '',
+  'function mGold(i){                          /* MACD 金叉：DIF 上穿 DEA */',
+  '  var a = MACD(i), b = MACD(i - 1);',
+  '  return a.dif > a.dea && b.dif <= b.dea;',
+  '}',
+  'function jGold(i){                          /* KDJ 金叉：K 上穿 D */',
+  '  var a = KDJ(i), b = KDJ(i - 1);',
+  '  return a.k > a.d && b.k <= b.d;',
+  '}',
+  'function recent(i, fn){                     /* 最近 R 根内出现过 fn 成立 */',
+  '  for (var k = 0; k < R; k++){ if (fn(i - k)) return true; }',
+  '  return false;',
+  '}',
+  '',
+  'function buy(i){',
+  '  return recent(i, mGold) && recent(i, jGold);',
+  '}',
+  '',
+  'function sell(i, pos){',
+  '  var a = MACD(i), b = MACD(i - 1);',
+  '  var c = KDJ(i),  e = KDJ(i - 1);',
+  '  var mDead = a.dif < a.dea && b.dif >= b.dea;',
+  '  var jDead = c.k < c.d && e.k >= e.d;',
+  '  return mDead || jDead;                    /* 任一死叉离场；要双死叉改为 && */',
+  '}'
+].join('\n');
+
 function btCodeSave(){
   try { localStorage.setItem(BT_CODE_KEY, $('btCode').value); } catch(e){}
   btCodeStat('');
@@ -3196,6 +3234,7 @@ function btCodeInit(){
     ].join('\n');
     btCodeSave();
   });
+  $('btCodeMkdj').addEventListener('click', function(){ ta.value = BT_MKDJ; btCodeSave(); });
   $('btCodeReset').addEventListener('click', function(){ ta.value = BT_DEMO; btCodeSave(); });
 }
 
@@ -3229,12 +3268,62 @@ function btCustomCompile(src, bars, closes){
     for (let j = Math.max(0, i - (p | 0)); j < i; j++) if (bars[j].l < m) m = bars[j].l;
     return m === Infinity ? NaN : m;
   }
+  /* MACD(12,26,9)：DIF=EMA12-EMA26，DEA=DIF 的 EMA9，bar=(DIF-DEA)*2。
+     注意 emaArr 假定输入无 NaN，DEA 必须从 DIF 首个有效点重新起算，否则整条被 NaN 污染 */
+  const macdC = { dif: null, dea: null };
+  function MACD(i){
+    if (!macdC.dif){
+      const len = closes.length, e12 = emaArr(closes, 12), e26 = emaArr(closes, 26);
+      const dif = new Array(len), dea = new Array(len).fill(NaN);
+      let s0 = -1;
+      for (let k = 0; k < len; k++){
+        dif[k] = (isFinite(e12[k]) && isFinite(e26[k])) ? e12[k] - e26[k] : NaN;
+        if (s0 < 0 && isFinite(dif[k])) s0 = k;
+      }
+      const kk = 0.2;
+      let sum = 0, prev = NaN;
+      for (let k = s0; k < len; k++){
+        const t = k - s0;
+        if (t < 8) sum += dif[k];
+        else if (t === 8){ sum += dif[k]; prev = sum / 9; dea[k] = prev; }
+        else { prev = prev + kk * (dif[k] - prev); dea[k] = prev; }
+      }
+      macdC.dif = dif; macdC.dea = dea;
+    }
+    if (i < 0 || i >= macdC.dif.length) return { dif: NaN, dea: NaN, bar: NaN };
+    const d1 = macdC.dif[i], d2 = macdC.dea[i];
+    return { dif: d1, dea: d2, bar: (d1 - d2) * 2 };
+  }
+  /* KDJ(9,3,3)：RSV=(C-LLn)/(HHn-LLn)*100，K/D 平滑系数 1/3，初始 50；从第 n 根起有值 */
+  const kdjCache = {};
+  function KDJ(i, n){
+    const q = Math.max(2, (n | 0) || 9);
+    if (!kdjCache[q]){
+      const len = closes.length, K = new Array(len).fill(NaN), D = new Array(len).fill(NaN);
+      let pk = 50, pd = 50;
+      for (let k = q - 1; k < len; k++){
+        let hh = -Infinity, ll = Infinity;
+        for (let j = k - q + 1; j <= k; j++){
+          if (H[j] > hh) hh = H[j];
+          if (L[j] < ll) ll = L[j];
+        }
+        const rsv = hh > ll ? (closes[k] - ll) / (hh - ll) * 100 : 50;
+        pk = 2 / 3 * pk + 1 / 3 * rsv;
+        pd = 2 / 3 * pd + 1 / 3 * pk;
+        K[k] = pk; D[k] = pd;
+      }
+      kdjCache[q] = { k: K, d: D };
+    }
+    const a = kdjCache[q];
+    if (i < 0 || i >= a.k.length) return { k: NaN, d: NaN, j: NaN };
+    return { k: a.k[i], d: a.d[i], j: 3 * a.k[i] - 2 * a.d[i] };
+  }
   let out;
   try {
-    out = new Function('C', 'O', 'H', 'L', 'V', 'D', 'EMA', 'ATR', 'HH', 'LL',
+    out = new Function('C', 'O', 'H', 'L', 'V', 'D', 'EMA', 'ATR', 'HH', 'LL', 'MACD', 'KDJ',
       '"use strict";\nvar window, document, globalThis;\n' + src +
       '\n;return [ (typeof buy === "function" ? buy : null), (typeof sell === "function" ? sell : null) ];'
-    )(closes, O, H, L, V, D, EMA, ATR, HH, LL);
+    )(closes, O, H, L, V, D, EMA, ATR, HH, LL, MACD, KDJ);
   } catch(e){
     return { error: '脚本无法执行：' + (e && e.message ? e.message : String(e)) };
   }
