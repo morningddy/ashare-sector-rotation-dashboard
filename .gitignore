@@ -1,0 +1,9 @@
+# -*- coding: utf-8 -*-
+__pycache__/
+*.pyc
+.venv/
+venv/
+news-live/data/*.json
+news-live/data/concepts/
+news-live/_srv.log
+.DS_Store

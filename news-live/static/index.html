@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实时财经电报 · News Live</title>
+<style>
+  :root {
+    --bg: #0a0e15; --bg-soft: #0e131d; --panel: #121826; --panel-hover: #161e30;
+    --border: #212b3d; --border-hi: #33415c;
+    --text: #e8edf4; --text-2: #9aa7ba; --dim: #5d6b80;
+    --accent: #4c8dff; --accent-2: #22d3ee;
+    --red: #ff6b6b; --green: #3ddc97; --orange: #f0b429; --gray: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1200px 500px at 80% -10%, rgba(76,141,255,.07), transparent 60%),
+      radial-gradient(900px 400px at 5% 0%, rgba(34,211,238,.05), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "SF Pro SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px; -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: #26303f; border-radius: 5px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: #37455c; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  a { color: var(--accent); text-decoration: none; }
+
+  /* ---------- 顶栏 ---------- */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(10,14,21,.82); backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 22px 12px;
+  }
+  .h-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; max-width: 1060px; margin: 0 auto; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .live-dot {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--red);
+    box-shadow: 0 0 0 0 rgba(255,107,107,.5); animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255,107,107,.45); }
+    70% { box-shadow: 0 0 0 9px rgba(255,107,107,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,107,107,0); }
+  }
+  h1 {
+    font-size: 18px; font-weight: 800; letter-spacing: .5px;
+    background: linear-gradient(90deg, #e8edf4, #9db8e8);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .sub { font-size: 11px; color: var(--dim); margin-top: 2px; letter-spacing: .3px; }
+  .stats { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .stat {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.03); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 13px; font-size: 12px; color: var(--text-2);
+  }
+  .stat b { color: var(--text); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.g { background: var(--gray); } .dot.r { background: var(--red); }
+  .dot.gr { background: var(--green); } .dot.b { background: var(--accent); }
+  .toolbar {
+    display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; align-items: center;
+    max-width: 1060px; margin-left: auto; margin-right: auto;
+  }
+  .seg { display: flex; background: rgba(255,255,255,.03); border: 1px solid var(--border);
+         border-radius: 9px; padding: 2px; gap: 2px; }
+  .seg .chip {
+    border: none; background: transparent; color: var(--text-2);
+    padding: 4px 12px; border-radius: 7px; cursor: pointer; font-size: 12px;
+    transition: all .15s; user-select: none; white-space: nowrap;
+  }
+  .seg .chip:hover { color: var(--text); }
+  .seg .chip.on { background: var(--accent); color: #fff; font-weight: 600; }
+  .seg .chip.on.red { background: var(--red); }
+  .seg .chip.on.green { background: var(--green); }
+  .label { font-size: 12px; color: var(--dim); }
+  #kw {
+    background: rgba(255,255,255,.03); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 13px; border-radius: 9px; font-size: 13px; outline: none; width: 190px;
+    transition: border-color .15s, width .25s;
+  }
+  #kw::placeholder { color: var(--dim); }
+  #kw:focus { border-color: var(--accent); width: 230px; }
+
+  /* ---------- 主列表 ---------- */
+  main { max-width: 1060px; margin: 0 auto; padding: 18px 22px 70px; }
+  #feed { display: flex; flex-direction: column; gap: 10px; }
+  .item {
+    position: relative;
+    background: linear-gradient(180deg, var(--panel), var(--bg-soft));
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 11px 16px 11px 18px;
+    transition: transform .15s, border-color .2s, background .2s;
+  }
+  .item::before {
+    content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px;
+    border-radius: 3px; background: var(--gray); opacity: .55;
+  }
+  .item.s-bull::before { background: var(--red); }
+  .item.s-bear::before { background: var(--green); }
+  .item.s-mix::before  { background: var(--orange); }
+  .item:hover { transform: translateY(-1px); border-color: var(--border-hi); background: var(--panel-hover); }
+  .item.link { cursor: pointer; }
+  .item.link:hover { border-color: #3f5680; }
+  .item.new { animation: glow 5s ease-out; }
+  @keyframes glow {
+    0% { border-color: var(--accent); box-shadow: 0 0 18px rgba(76,141,255,.25); }
+    100% { border-color: var(--border); box-shadow: none; }
+  }
+  .i-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .time { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .time b { color: var(--text-2); font-weight: 600; margin-right: 5px; }
+  .badge { font-size: 11px; padding: 1px 9px; border-radius: 10px; font-weight: 600; letter-spacing: .3px; }
+  .badge.cls { background: rgba(76,141,255,.13); color: #7cb1ff; }
+  .badge.em  { background: rgba(240,180,41,.12); color: #e3b341; }
+  .badge.ind { background: rgba(199,146,234,.12); color: #c792ea; }
+  .s-bull { background: rgba(255,107,107,.13); color: var(--red); }
+  .s-bear { background: rgba(61,220,151,.12); color: var(--green); }
+  .s-mix  { background: rgba(240,180,41,.13); color: var(--orange); }
+  .s-neu  { background: rgba(100,116,139,.16); color: #8ea0b5; }
+  .content { margin-top: 7px; line-height: 1.7; font-size: 13.5px; color: #d5dde8; white-space: pre-wrap; }
+  .hits { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .hit {
+    font-size: 11px; background: rgba(76,141,255,.08); border: 1px solid rgba(76,141,255,.25);
+    color: #8ab6ff; padding: 2px 9px; border-radius: 6px; cursor: pointer; transition: all .15s;
+  }
+  .hit:hover { background: rgba(76,141,255,.2); border-color: var(--accent); }
+  .hit .why { color: var(--dim); margin-left: 4px; font-size: 10px; }
+
+  /* 骨架屏 */
+  .sk { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+        background: var(--panel); }
+  .sk-line { height: 12px; border-radius: 6px; margin-bottom: 10px;
+             background: linear-gradient(90deg, #1a2233 25%, #212c40 50%, #1a2233 75%);
+             background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+  .sk-line.w60 { width: 60%; } .sk-line.w90 { width: 90%; } .sk-line.w40 { width: 40%; margin-bottom: 0; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  #status { text-align: center; color: var(--dim); padding: 30px 0; font-size: 13px; }
+  #status a { color: var(--accent-2); }
+
+  /* ---------- 个股悬浮面板 ---------- */
+  #stock-panel { display: none; position: fixed; top: 96px; right: 20px; z-index: 50;
+    width: 430px; max-width: calc(100vw - 32px); max-height: calc(100vh - 130px);
+    background: linear-gradient(180deg, #151c2c, #10151f);
+    border: 1px solid var(--border-hi); border-radius: 14px;
+    padding: 15px 17px; box-shadow: 0 18px 50px rgba(0,0,0,.6);
+    animation: slidein .22s ease-out; }
+  @keyframes slidein { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+  #stock-panel h3 { font-size: 15px; margin-bottom: 11px; display: flex; justify-content: space-between; align-items: center; }
+  #stock-panel h3 span { cursor: pointer; color: var(--dim); font-size: 12px; padding: 3px 10px;
+                         border: 1px solid var(--border); border-radius: 7px; transition: all .15s; }
+  #stock-panel h3 span:hover { color: var(--text); border-color: var(--border-hi); }
+  #stock-news { display: flex; flex-direction: column; gap: 8px;
+    max-height: calc(100vh - 220px); overflow-y: auto; padding-right: 4px; }
+  #stock-news .item { padding: 10px 13px; }
+
+  /* 行情条 */
+  .quote-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: rgba(255,255,255,.03); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; }
+  .q-price { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+  .q-price.up { color: var(--red); } .q-price.down { color: var(--green); }
+  .q-price.flat { color: var(--text); }
+  .q-chg { display: flex; flex-direction: column; gap: 2px; font-size: 12px;
+           font-variant-numeric: tabular-nums; }
+  .q-chg b { font-size: 14px; }
+  .q-chg.up { color: var(--red); } .q-chg.down { color: var(--green); }
+  .q-chg.flat { color: var(--text-2); }
+  .q-meta { margin-left: auto; display: flex; flex-direction: column; gap: 3px;
+            font-size: 11px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .q-meta i { color: var(--dim); font-style: normal; margin-right: 4px; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--panel-hover);
+    border: 1px solid var(--accent); color: var(--text); padding: 11px 19px;
+    border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .3s; z-index: 99;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5); max-width: 400px; }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 640px) {
+    header { padding: 12px 14px 10px; }
+    main { padding: 14px 14px 60px; }
+    .stats { display: none; }
+    .item { padding: 10px 12px 10px 15px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="h-row">
+    <div class="brand">
+      <span class="live-dot"></span>
+      <div>
+        <h1>实时财经电报</h1>
+        <div class="sub" id="updated">正在连接数据源…</div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="dot g"></span>共<b id="st-total">-</b></div>
+      <div class="stat"><span class="dot r"></span>利好<b id="st-bull">-</b></div>
+      <div class="stat"><span class="dot gr"></span>利空<b id="st-bear">-</b></div>
+      <div class="stat"><span class="dot b"></span>个股<b id="st-stocks">-</b></div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <span class="label">回溯</span>
+    <div class="seg" id="days-chips"></div>
+    <span class="label">来源</span>
+    <div class="seg" id="src-chips"></div>
+    <span class="label">情绪</span>
+    <div class="seg" id="sent-chips"></div>
+    <input type="text" id="kw" placeholder="关键词过滤…">
+  </div>
+</header>
+
+<main>
+  <div id="feed">
+    <div class="sk"><div class="sk-line w40"></div><div class="sk-line w90"></div><div class="sk-line w60"></div></div>
+    <div class="sk"><div class="sk-line w40"></div><div class="sk-line w90"></div><div class="sk-line w60"></div></div>
+    <div class="sk"><div class="sk-line w40"></div><div class="sk-line w90"></div><div class="sk-line w60"></div></div>
+    <div class="sk"><div class="sk-line w40"></div><div class="sk-line w90"></div><div class="sk-line w60"></div></div>
+  </div>
+  <div id="stock-panel">
+    <h3><span id="stock-title"></span><span onclick="closeStock()">✕ 关闭 (Esc)</span></h3>
+    <div class="quote-bar" id="quote-bar" style="display:none;"></div>
+    <div id="stock-news"></div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const S = { days: 1, src: "全部", sent: "全部", kw: "", lastSig: "", firstLoad: true };
+let ALL = [];
+
+// 页面若被当静态文件直接打开（file://），改走本地服务绝对地址；否则同源
+const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8510" : "";
+const LOCAL_URL = "http://127.0.0.1:8510";
+const ONLINE_URL = "https://finance-news-live-45216.app.workbuddy.host/?sharecode=OZLWTRYQUD";
+
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+function showOfflineGuide(detail) {
+  document.getElementById("feed").innerHTML =
+    `<div id="status">
+       <div style="max-width:540px;margin:0 auto;padding:26px;border:1px solid var(--border);border-radius:14px;background:var(--panel);text-align:left;">
+         <div style="font-size:16px;margin-bottom:10px;">⚠️ 页面没有通过服务打开</div>
+         <div style="color:var(--text-2);line-height:2;font-size:13px;">
+           当前是以静态文件方式打开的 index.html，拿不到新闻接口。<br>
+           请用下面任一地址访问：<br><br>
+           💻 <a href="${LOCAL_URL}">本地版 ${LOCAL_URL}</a>（需先启动本地服务）<br>
+           🌐 <a href="${ONLINE_URL}">线上版（免部署，随时可开）</a>
+         </div>
+         <div style="color:var(--dim);font-size:12px;margin-top:12px;">技术详情：${esc(detail || "")}</div>
+       </div>
+     </div>`;
+}
+
+// 相对时间："5分钟前" / "2小时前"，超过 24h 只显示原时间
+function relTime(ts) {
+  const m = String(ts || "").match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+  if (!m) return "";
+  const t = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+  const diff = (Date.now() - t.getTime()) / 1000;
+  if (diff < 0 || isNaN(diff)) return "";
+  if (diff < 60) return "刚刚";
+  if (diff < 3600) return Math.floor(diff / 60) + " 分钟前";
+  if (diff < 86400) return Math.floor(diff / 3600) + " 小时前";
+  return "";
+}
+
+const DAYS_OPTS = [1, 3, 7, 14];
+const SRC_OPTS = ["全部", "财联社", "东财快讯", "个股资讯", "公司公告"];
+const SENT_OPTS = ["全部", "利好", "利空", "多空交织", "中性"];
+
+function buildChips() {
+  const mk = (id, opts, cur, cls, fn) => {
+    const el = document.getElementById(id); el.innerHTML = "";
+    opts.forEach(o => {
+      const d = document.createElement("div");
+      d.className = "chip" + ((o === cur || String(o) === String(cur)) ? " " + cls : "");
+      d.textContent = o;
+      d.onclick = () => { fn(o); buildChips(); };
+      el.appendChild(d);
+    });
+  };
+  mk("days-chips", DAYS_OPTS.map(d => d + "天"), S.days + "天", "on",
+     o => { S.days = parseInt(o); load(); });
+  mk("src-chips", SRC_OPTS, S.src, "on", o => { S.src = o; render(); });
+  mk("sent-chips", SENT_OPTS, S.sent, "on", o => { S.sent = o; render(); });
+}
+
+function sentClass(s) {
+  return { "利好": "s-bull", "利空": "s-bear", "多空交织": "s-mix", "中性": "s-neu" }[s] || "s-neu";
+}
+
+async function load() {
+  try {
+    const r = await fetch(`${API_BASE}/api/news?days=${S.days}`);
+    if (r.status === 429) {
+      const j = await r.json().catch(() => ({}));
+      toast(j.message || "请求过于频繁，稍后自动重试");
+      setTimeout(load, Math.max(15, j.retry_after || 30) * 1000);
+      return;
+    }
+    const text = await r.text();
+    let j;
+    try { j = JSON.parse(text); }
+    catch (e) { throw new Error(`服务返回异常(HTTP ${r.status})：` + text.slice(0, 100)); }
+    if (j.error) throw new Error(j.error + (j.detail ? " " + j.detail : ""));
+    if (j.loading) {
+      document.getElementById("updated").textContent = "正在抓取财联社电报与东财快讯（首次约需 1 分钟）…";
+      setTimeout(load, 5000);
+    }
+    ALL = j.records || [];
+    document.getElementById("updated").textContent =
+      `每 60s 自动刷新 · 更新于 ${j.updated_at || "-"}`;
+    document.getElementById("st-total").textContent = j.summary?.total ?? ALL.length;
+    document.getElementById("st-bull").textContent = j.summary?.bull ?? "-";
+    document.getElementById("st-bear").textContent = j.summary?.bear ?? "-";
+    const codes = new Set();
+    ALL.forEach(x => (x.hits || []).forEach(h => codes.add(h.code)));
+    document.getElementById("st-stocks").textContent = codes.size;
+    if (j.errors?.length) toast("部分源暂不可用: " + j.errors.join("; "));
+    render();
+  } catch (e) {
+    showOfflineGuide(e);
+  }
+}
+
+function render() {
+  const feed = document.getElementById("feed");
+  const kw = S.kw.trim();
+  const rows = ALL.filter(x => {
+    if (S.src !== "全部" && x.source !== S.src) return false;
+    if (S.sent !== "全部" && x.sentiment !== S.sent) return false;
+    if (kw && !(x.content || "").includes(kw)) return false;
+    return true;
+  });
+  const sig = rows.slice(0, 5).map(x => x.time + x.content.slice(0, 40)).join("|");
+  feed.innerHTML = "";
+  if (!rows.length) {
+    feed.innerHTML = `<div id="status">暂无符合条件的新闻</div>`;
+    return;
+  }
+  rows.forEach(x => {
+    const isNew = !S.firstLoad && sig && !S.lastSig.includes(x.time + x.content.slice(0, 40)) &&
+                  rows.indexOf(x) < 8;
+    const d = document.createElement("div");
+    d.className = "item " + sentClass(x.sentiment) + (isNew ? " new" : "") + (x.url ? " link" : "");
+    if (x.url) d.onclick = () => window.open(x.url, "_blank");
+    const srcBadge = x.source === "财联社" ? "cls" : x.source === "东财快讯" ? "em" : "ind";
+    const hits = (x.hits || []).slice(0, 10).map(h =>
+      `<span class="hit" onclick="openStock('${h.code}','${esc(h.name)}');event.stopPropagation()">${esc(h.name)} ${h.code}` +
+      `<span class="why">${esc(h.reason || "")}</span></span>`).join("");
+    const rel = relTime(x.time);
+    const timeHtml = rel ? `<b>${rel}</b>` : "";
+    const url = x.url ? ` · <a href="${x.url}" target="_blank" onclick="event.stopPropagation()">原文</a>` : "";
+    d.innerHTML =
+      `<div class="i-head">
+         <span class="time">${timeHtml}${esc(x.time || "")}</span>
+         <span class="badge ${srcBadge}">${esc(x.source)}</span>
+         <span class="badge ${sentClass(x.sentiment)}">${esc(x.sentiment || "中性")}</span>${url}
+       </div>
+       <div class="content">${esc(x.content || "")}</div>
+       ${hits ? `<div class="hits">${hits}</div>` : ""}`;
+    feed.appendChild(d);
+  });
+  S.lastSig = sig;
+  S.firstLoad = false;
+}
+
+async function openStock(code, name) {
+  const panel = document.getElementById("stock-panel");
+  const list = document.getElementById("stock-news");
+  document.getElementById("stock-title").textContent = `${name} ${code} · 个股专属资讯`;
+  panel.style.display = "block";
+  list.innerHTML = `<div class="sk"><div class="sk-line w40"></div><div class="sk-line w90"></div><div class="sk-line w60"></div></div>`;
+  loadQuote(code);                                  // 行情条异步加载，不阻塞资讯
+  try {
+    const r = await fetch(`${API_BASE}/api/stock_news?code=${code}&name=${encodeURIComponent(name)}`);
+    const j = await r.json();
+    list.innerHTML = (j.records || []).map(x =>
+      `<div class="item ${sentClass(x.sentiment)}${x.url ? " link" : ""}"${x.url ? ` onclick="window.open('${x.url}','_blank')"` : ""}>
+         <div class="i-head">
+           <span class="time"><b>${relTime(x.time)}</b>${esc((x.time || "").slice(0, 19))}</span>
+           <span class="badge ${sentClass(x.sentiment)}">${esc(x.sentiment || "")}</span>
+           <span class="badge ind">${esc(x.source || "个股资讯")}</span>
+           ${x.url ? `<a href="${x.url}" target="_blank" onclick="event.stopPropagation()">原文</a>` : ""}
+         </div>
+         <div class="content">${esc(x.content || "")}</div>
+       </div>`).join("") || `<div id="status">暂无相关资讯</div>`;
+  } catch (e) { list.innerHTML = `<div id='status'>查询失败：${e}</div>`; }
+}
+
+async function loadQuote(code) {
+  const bar = document.getElementById("quote-bar");
+  bar.style.display = "none";
+  try {
+    const r = await fetch(`${API_BASE}/api/quote?code=${code}`);
+    const j = await r.json();
+    const q = j.quote || {};
+    if (!q["最新价"]) return;
+    const chg = q["涨跌幅"] || 0;
+    const dir = chg > 0 ? "up" : chg < 0 ? "down" : "flat";
+    const sign = chg > 0 ? "+" : "";
+    const chgAmt = q["最新价"] - (q["昨收"] || q["最新价"]);
+    const amt = q["成交额"] ? (q["成交额"] / 1e8).toFixed(2) + " 亿" : "-";
+    bar.innerHTML =
+      `<div class="q-price ${dir}">${q["最新价"].toFixed(2)}</div>
+       <div class="q-chg ${dir}">
+         <b>${sign}${chg.toFixed(2)}%</b>
+         <span>${sign}${chgAmt.toFixed(2)}</span>
+       </div>
+       <div class="q-meta">
+         <span><i>今开</i>${(q["今开"] ?? 0).toFixed(2)}　<i>最高</i>${(q["最高"] ?? 0).toFixed(2)}　<i>最低</i>${(q["最低"] ?? 0).toFixed(2)}</span>
+         <span><i>昨收</i>${(q["昨收"] ?? 0).toFixed(2)}　<i>成交额</i>${amt}　<i>换手</i>${(q["换手率"] ?? 0).toFixed(2)}%</span>
+       </div>`;
+    bar.style.display = "flex";
+  } catch (e) { /* 行情失败不打扰资讯浏览 */ }
+}
+function closeStock() { document.getElementById("stock-panel").style.display = "none"; }
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeStock(); });
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 4000);
+}
+
+document.getElementById("kw").addEventListener("input", e => { S.kw = e.target.value; render(); });
+
+buildChips();
+load();
+setInterval(load, 60000);   // 60 秒轮询，配合后台线程实现准实时
+</script>
+</body>
+</html>
