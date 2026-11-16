@@ -321,6 +321,17 @@ footer{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-si
 .bt-chip:hover{color:var(--cyan);border-color:rgba(34,211,238,.45);background:rgba(34,211,238,.08)}
 .bt-chip.on{color:var(--cyan);border-color:rgba(34,211,238,.5);background:rgba(34,211,238,.1)}
 .bt-quick .hint{font-size:10.5px;color:var(--dim2);margin-left:auto}
+/* 自定义策略脚本区 */
+.bt-code{padding:12px 16px;border-bottom:1px solid var(--line)}
+.bt-code-hd{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dim);margin-bottom:8px}
+.bt-code-hd .lb{flex:1}
+.bt-code-hd .mini{font-size:10.5px;padding:3px 9px;border:1px solid var(--line2);border-radius:5px;background:rgba(255,255,255,.02);color:var(--dim);cursor:pointer;transition:color .15s,border-color .15s}
+.bt-code-hd .mini:hover{color:var(--cyan);border-color:rgba(34,211,238,.45)}
+.bt-code-hd .stat{font-size:10.5px;color:var(--dim2);font-family:var(--mono)}
+#btCode{width:100%;height:240px;box-sizing:border-box;background:#070a0f;border:1px solid var(--line2);border-radius:8px;color:#cfe3f5;font-family:var(--mono);font-size:11.5px;line-height:1.75;padding:10px 12px;resize:vertical;outline:none;white-space:pre;overflow:auto;tab-size:2}
+#btCode:focus{border-color:rgba(34,211,238,.4)}
+.bt-code-tip{font-size:10.5px;color:var(--dim2);margin-top:7px;line-height:1.9}
+.bt-code-tip b{color:var(--dim);font-family:var(--mono)}
 .bt-cfg .f input[type=checkbox]{-webkit-appearance:none;appearance:none;width:15px;height:15px;margin:0;flex:none;
   border:1px solid var(--line2);border-radius:4px;background:#0b1017;cursor:pointer;position:relative;transition:.15s}
 .bt-cfg .f input[type=checkbox]:checked{background:rgba(34,211,238,.16);border-color:rgba(34,211,238,.55)}
@@ -686,6 +697,7 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
             <option value="cross">均线交叉</option>
             <option value="breakout">N日区间突破</option>
             <option value="retest">突破回踩再入场</option>
+            <option value="custom">✎ 自定义脚本</option>
           </select>
         </div>
         <div class="f" id="btFFast"><span>快线</span><input id="btFast" type="number" value="5" min="2" max="60" /></div>
@@ -699,6 +711,22 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
         <div class="f"><span>佣金(万)</span><input id="btFee" type="number" value="2.5" step="0.5" min="0" /></div>
         <div class="f"><span>滑点%</span><input id="btSlip" type="number" value="0.1" step="0.05" min="0" /></div>
         <button class="btn-act" id="btRun">▶ 运行回测</button>
+      </div>
+      <div class="bt-code" id="btCodeWrap" style="display:none">
+        <div class="bt-code-hd">
+          <span class="lb">✎ 自定义策略脚本 —— 定义 <b>buy(i)</b> 与 <b>sell(i, pos)</b></span>
+          <button type="button" class="mini" id="btCodeDemo">载入示例</button>
+          <button type="button" class="mini" id="btCodeReset">恢复默认</button>
+          <span class="stat" id="btCodeStat"></span>
+        </div>
+        <textarea id="btCode" spellcheck="false" autocomplete="off"></textarea>
+        <div class="bt-code-tip">
+          每根 K 线收盘时评估，环境变量：<b>C/O/H/L/V[i]</b> 收开高低量、<b>D[i]</b> 日期（如 '2026-11-16'）、
+          <b>EMA(i,n)</b> 均线、<b>ATR(i,n)</b> 真实波幅、<b>HH(i,n)/LL(i,n)</b> 前 n 根最高/最低（不含当日）、
+          sell 里 <b>pos</b> = { entry 入场价, i 入场下标, sh 股数, stop 止损位, tp 止盈位 }。
+          信号收盘确认 → 次日开盘成交（T+1）；上方 ATR / 止损 / 止盈参数对自定义策略同样生效（填 0 关闭）。
+          脚本保存在本机浏览器，下次打开仍在。
+        </div>
       </div>
       <div class="bt-info" id="btInfo">选择标的后点「运行回测」。首次进入会自动带入当前页个股。</div>
     </div>
@@ -2642,7 +2670,7 @@ async function refreshSectors(){
    预览面板等嵌入环境可能限制外部脚本/请求；一旦全源不通，明确告知原因，
    而不是让用户以为页面坏了。
    ========================================================================== */
-const BUILD_TAG = 'BUILD 11-16 23:27';
+const BUILD_TAG = 'BUILD 11-16 23:36';
 let envChecked = false, envRunning = false;
 
 function selfPath(){
@@ -2900,6 +2928,7 @@ function btBind(){
   });
   btRenderQuick();
   btBindSearch();
+  btCodeInit();
   btStratUI();
 }
 
@@ -2908,6 +2937,7 @@ function btStratUI(){
   $('btFFast').classList.toggle('hide', s !== 'cross');
   $('btFSlow').classList.toggle('hide', s !== 'cross');
   $('btFN').classList.toggle('hide', !(s === 'breakout' || s === 'retest'));
+  $('btCodeWrap').style.display = s === 'custom' ? '' : 'none';
 }
 
 /* 6 位代码 → secid（6 开头沪市，4/8 开头北交所，其余深市） */
@@ -3100,6 +3130,126 @@ async function btDoSearch(){
   }
 }
 
+/* ---- 自定义策略脚本 ----
+   用户在文本框里写两个函数：buy(i) 空仓时每根收盘评估；sell(i, pos) 持仓时评估。
+   沙箱：new Function 注入行情数组与指标函数，strict 模式，无 window/document 访问需求。 */
+const BT_CODE_KEY = 'bt_custom_code_v1';
+
+const BT_DEMO = [
+  '/* ✎ 自定义策略：收盘评估 → 次日开盘成交（T+1）',
+  '   可用：C[i] O[i] H[i] L[i] V[i] 收开高低量，D[i] 日期',
+  '         EMA(i, n) / ATR(i, n)，HH(i, n) / LL(i, n) 前 n 根高低（不含当日）',
+  '   sell 的 pos：{ entry 入场价, i 入场下标, sh 股数, stop, tp }',
+  '',
+  '   示例：站上 EMA20 且 EMA20 向上时做多，收盘跌破 EMA20 离场 */',
+  '',
+  'function buy(i){',
+  '  return C[i] > EMA(i, 20) && EMA(i, 20) >= EMA(i - 1, 20);',
+  '}',
+  '',
+  'function sell(i, pos){',
+  '  return C[i] < EMA(i, 20);',
+  '}'
+].join('\n');
+
+function btCodeStat(msg, bad){
+  const el = $('btCodeStat');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = bad ? 'var(--amber)' : 'var(--dim2)';
+}
+function btCodeSave(){
+  try { localStorage.setItem(BT_CODE_KEY, $('btCode').value); } catch(e){}
+  btCodeStat('');
+}
+function btCodeInit(){
+  const ta = $('btCode');
+  try { ta.value = localStorage.getItem(BT_CODE_KEY) || BT_DEMO; } catch(e){ ta.value = BT_DEMO; }
+  ta.addEventListener('blur', btCodeSave);
+  ta.addEventListener('keydown', function(e){       /* Tab 缩进 / Ctrl+Enter 运行 */
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+      e.preventDefault(); btCodeSave(); btRun(); return;
+    }
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const s = ta.selectionStart, en = ta.selectionEnd;
+    ta.setRangeText('  ', s, en, 'end');
+  });
+  $('btCodeDemo').addEventListener('click', function(){
+    ta.value = [
+      '/* 示例一：N 日突破（参数写死 20，改数字即可）',
+      'function buy(i){',
+      '  return C[i] > HH(i, 20);',
+      '}',
+      'function sell(i, pos){',
+      '  return C[i] < LL(i, 10) || C[i] < EMA(i, 20);',
+      '}',
+      '',
+      '/* 示例二：双均线金叉（把下面两行挪到上面替换即可）',
+      'function buy(i){',
+      '  return EMA(i, 5) > EMA(i, 20) && EMA(i - 1, 5) <= EMA(i - 1, 20);',
+      '}',
+      'function sell(i, pos){',
+      '  return EMA(i, 5) < EMA(i, 20);',
+      '}',
+      '*/'
+    ].join('\n');
+    btCodeSave();
+  });
+  $('btCodeReset').addEventListener('click', function(){ ta.value = BT_DEMO; btCodeSave(); });
+}
+
+/* 编译用户脚本：返回 { buy, sell } 或 { error } */
+function btCustomCompile(src, bars, closes){
+  const O = bars.map(function(b){ return b.o; }),
+        H = bars.map(function(b){ return b.h; }),
+        L = bars.map(function(b){ return b.l; }),
+        V = bars.map(function(b){ return b.v; }),
+        D = bars.map(function(b){ return b.d; });
+  const emaCache = {}, atrCache = {};
+  function EMA(i, p){
+    const q = Math.max(1, p | 0);
+    if (!emaCache[q]) emaCache[q] = emaArr(closes, q);
+    const a = emaCache[q];
+    return (i >= 0 && i < a.length) ? a[i] : NaN;
+  }
+  function ATR(i, p){
+    const q = Math.max(2, p | 0);
+    if (!atrCache[q]) atrCache[q] = atrArr(bars, q);
+    const a = atrCache[q];
+    return (i >= 0 && i < a.length) ? a[i] : NaN;
+  }
+  function HH(i, p){
+    let m = -Infinity;
+    for (let j = Math.max(0, i - (p | 0)); j < i; j++) if (bars[j].h > m) m = bars[j].h;
+    return m === -Infinity ? NaN : m;
+  }
+  function LL(i, p){
+    let m = Infinity;
+    for (let j = Math.max(0, i - (p | 0)); j < i; j++) if (bars[j].l < m) m = bars[j].l;
+    return m === Infinity ? NaN : m;
+  }
+  let out;
+  try {
+    out = new Function('C', 'O', 'H', 'L', 'V', 'D', 'EMA', 'ATR', 'HH', 'LL',
+      '"use strict";\nvar window, document, globalThis;\n' + src +
+      '\n;return [ (typeof buy === "function" ? buy : null), (typeof sell === "function" ? sell : null) ];'
+    )(closes, O, H, L, V, D, EMA, ATR, HH, LL);
+  } catch(e){
+    return { error: '脚本无法执行：' + (e && e.message ? e.message : String(e)) };
+  }
+  if (!out[0] && !out[1]) return { error: '脚本里没有定义 buy(i) 或 sell(i, pos) 函数' };
+  return { buy: out[0], sell: out[1] };
+}
+
+/* 自定义脚本运行期出错：报出错的 K 线日期，终止本次回测 */
+function btCustomErr(bar, i, e){
+  const msg = (e && e.message) ? e.message : String(e);
+  btCodeStat('✗ ' + msg, true);
+  $('btInfo').innerHTML = '<span style="color:var(--amber)">脚本在 ' + bar.d + '（第 ' + (i + 1)
+    + ' 根 K 线）抛错：' + msg + '，已终止</span>';
+}
+
 /* ---- 指标 ---- */
 function emaArr(v, p){
   const out = [], k = 2 / (p + 1);
@@ -3152,6 +3302,20 @@ function btRun(){
   const atr = atrArr(bars, P.atrP);
   const warm = Math.min(n - 5, Math.max(30, P.slow + 2, P.N + 2, P.atrP + 2, 22));
   const stamp = 0.0005, minFee = 5;
+
+  /* 自定义脚本：编译 + 静默保存 */
+  let ub = null, us = null;
+  if (P.strat === 'custom'){
+    btCodeSave();
+    const cc = btCustomCompile($('btCode').value, bars, closes);
+    if (cc.error){
+      btCodeStat('✗ ' + cc.error, true);
+      $('btInfo').innerHTML = '<span style="color:var(--amber)">' + cc.error + '，请修改脚本后重试</span>';
+      return;
+    }
+    ub = cc.buy; us = cc.sell;
+    btCodeStat('✓ 脚本就绪');
+  }
 
   let cash = P.cash, pos = null, pendBuy = false, pendSell = false, bk = null;
   const trades = [], equity = new Array(n).fill(P.cash);
@@ -3216,7 +3380,7 @@ function btRun(){
       let lo2 = 1e18;
       for (let j = i - half; j <= i - 1; j++) lo2 = Math.min(lo2, bars[j].l);
       sell = b.c < ema20[i] || b.c < lo2;
-    } else { /* retest：突破 N 日高点后 8 根内回踩突破位企稳再入场 */
+    } else if (P.strat === 'retest'){ /* 突破 N 日高点后 8 根内回踩突破位企稳再入场 */
       let hi = -1e18;
       for (let j = i - P.N; j <= i - 1; j++) hi = Math.max(hi, bars[j].h);
       if (!bk && b.c > hi && isFinite(atr[i])){
@@ -3230,6 +3394,17 @@ function btRun(){
       let lo2 = 1e18;
       for (let j = i - half; j <= i - 1; j++) lo2 = Math.min(lo2, bars[j].l);
       sell = b.c < ema20[i] || b.c < lo2;
+    } else if (P.strat === 'custom'){
+      /* 用户脚本：空仓时评估 buy(i)，持仓时评估 sell(i, pos)；抛错即终止并报日期 */
+      if (pos){
+        if (us){
+          try { sell = !!us(i, pos); }
+          catch(e){ btCustomErr(b, i, e); return; }
+        }
+      } else if (ub){
+        try { buy = !!ub(i); }
+        catch(e){ btCustomErr(b, i, e); return; }
+      }
     }
     if (pos && sell) pendSell = true;
     if (!pos && buy) pendBuy = true;
@@ -3293,7 +3468,7 @@ function btRender(R){
   $('btResSec').style.display = '';
   const nm = BT.name + ' ' + BT.code;
   $('btResTitle').textContent = '回测结果 · ' + nm;
-  const stName = { ema:'EMA20趋势跟随', cross:'均线交叉', breakout:'N日区间突破', retest:'突破回踩再入场' }[R.P.strat];
+  const stName = { ema:'EMA20趋势跟随', cross:'均线交叉', breakout:'N日区间突破', retest:'突破回踩再入场', custom:'✎ 自定义脚本' }[R.P.strat];
   $('btResSub').innerHTML = '<b>' + stName + '</b> · ' + R.bars[R.warm].d + ' ~ ' + R.bars[R.n-1].d
     + ' · ' + R.days.toFixed(0) + ' 天 · 止损' + R.P.stopMult + '×ATR / 止盈' + R.P.tpR + '×R'
     + (R.P.trail ? ' / 跟踪' : '') + ' · 滑点' + (R.P.slip*100).toFixed(2) + '%';
