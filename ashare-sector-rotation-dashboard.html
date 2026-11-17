@@ -463,6 +463,11 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
 #pagePick .pk-sum{padding:11px 16px;font-size:11.5px;color:var(--dim2);font-family:var(--mono);border-top:1px solid var(--line);display:flex;gap:14px;flex-wrap:wrap;align-items:center}
 #pagePick .pk-copy{margin-left:auto;border:1px solid var(--line2);background:rgba(255,255,255,.02);color:var(--dim);border-radius:7px;padding:4px 12px;font-size:11px;cursor:pointer;font-family:var(--mono);transition:.16s}
 #pagePick .pk-copy:hover{color:var(--cyan);border-color:rgba(34,211,238,.4)}
+#pagePick .pk-code{margin:10px 0 2px}
+#pagePick .pk-code textarea{width:100%;height:170px;background:#0b1220;color:#dbe4f0;border:1px solid rgba(148,163,184,.25);border-radius:8px;padding:10px 12px;font:12px/1.6 Consolas,monospace;resize:vertical;box-sizing:border-box}
+#pagePick .pk-code textarea:focus{outline:none;border-color:rgba(34,211,238,.45)}
+#pagePick .pk-code-tip{font-size:11px;color:var(--dim2);margin-top:7px;line-height:1.75}
+#pagePick .pk-code-tip b{color:var(--dim);font-weight:600}
 #pagePick .pkk{color:inherit;text-decoration:none;cursor:pointer;border-bottom:1px dashed rgba(255,255,255,.28);transition:.15s}
 #pagePick .pkk:hover{color:var(--cyan);border-bottom-color:rgba(34,211,238,.6)}
 </style>
@@ -1025,6 +1030,15 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
           <label class="pk-opt"><input type="checkbox" id="pkExNew" checked>排除次新（K线不足40根）</label>
           <label class="pk-opt"><input type="checkbox" id="pkExInd" checked>同行业最多 2 只</label>
           <button class="pk-go" id="pkGo">开始选股</button>
+        </div>
+        <div class="pk-row" style="flex-wrap:wrap">
+          <label class="pk-opt"><input type="checkbox" id="pkCustom">✎ 自定义策略（自己写 score 评分，替代三套内置）</label>
+          <button type="button" class="pk-copy" id="pkCodeDemo">载入示例</button>
+          <span class="mono" id="pkCodeStat" style="font-size:11px;color:var(--dim2)"></span>
+        </div>
+        <div class="pk-code" id="pkCodeWrap" style="display:none">
+          <textarea id="pkCode" spellcheck="false" autocomplete="off"></textarea>
+          <div class="pk-code-tip">必须定义 <b>score(fx)</b>，返回 { s: 0~1 得分, t: '入选理由（可空）' }；可选 <b>want(fx)</b> 返回 false 直接剔除该股。fx 字段：pct 当日涨跌 / vr 量比 / tr 换手% / mcYi 流通市值(亿) / chg20 / chg5 近20日/5日涨跌 / distMA20 收盘距MA20 / bull 均线多头 / ma5gt10 / ma10gt20 / vboost 当日量÷5日均量 / atHigh20 创20日新高 / nearHigh20 逼近前高 / mhist MACD柱 / mhistUp MACD拐头。勾选后整轮按你的评分选股，市场状态判定仅供参考；脚本保存在本机浏览器。</div>
         </div>
         <div class="pk-prog" id="pkProg"><div class="pk-bar"><i id="pkFill"></i></div><div class="pk-txt" id="pkTxt">初始化…</div></div>
       </div>
@@ -3103,7 +3117,7 @@ async function refreshSectors(){
    预览面板等嵌入环境可能限制外部脚本/请求；一旦全源不通，明确告知原因，
    而不是让用户以为页面坏了。
    ========================================================================== */
-const BUILD_TAG = 'BUILD 11-17 22:46';
+const BUILD_TAG = 'BUILD 11-17 23:06';
 let envChecked = false, envRunning = false;
 
 function selfPath(){
@@ -5166,7 +5180,49 @@ async function boot(){
         { label:'中小流通盘', w:8, calc:function(fx){ return fnear(fx.mcYi, 150, 650); } },
       ]
     },
+    /* 伪策略键：勾选「自定义策略」后接管选股，渲染/留档/复制全链路经此键走通 */
+    custom: {
+      name:'✎ 自定义策略', icon:'✎',
+      desc:'你写的 score(fx) 评分函数接管本轮选股，市场状态判定仅供参考。',
+      factors:[]
+    },
   };
+
+  /* ---- 自定义策略：脚本 + 编译 ---- */
+  const PK_CODE_KEY = 'pk_custom_v1';
+  const PK_DEMO = [
+    '/* ✎ 自定义策略示例：放量突破 + 均线走多',
+    '   score(fx) 必须定义：返回 { s: 0~1 得分, t: "入选理由（可空）" }，技术分 = s×100',
+    '   want(fx)  可选：返回 false 直接剔除该股（硬性门槛）',
+    '   fx 字段见下方脚本框说明（pct/vr/tr/mcYi/chg20/chg5/distMA20/bull/',
+    '   ma5gt10/ma10gt20/vboost/atHigh20/nearHigh20/mhist/mhistUp） */',
+    '',
+    'function want(fx){',
+    '  return fx.atHigh20 && fx.vboost >= 1.5;    /* 硬门槛：创20日新高且放量1.5倍 */',
+    '}',
+    '',
+    'function score(fx){',
+    '  var s = 0.4 * Math.min(fx.vboost / 3, 1)                 /* 放量程度 */',
+    '      + 0.3 * (fx.pct >= .02 && fx.pct <= .07 ? 1 : .2)    /* 当日温和启动 */',
+    '      + 0.3 * (fx.ma5gt10 && fx.ma10gt20 ? 1 : .3);       /* 均线结构 */',
+    '  return { s: s, t: "20日新高 · 量比" + (fx.vr || 0).toFixed(1) };',
+    '}'
+  ].join('\n');
+  function pkCompile(){
+    const src = $('pkCode').value;
+    if (!src || !src.trim()) return { error:'脚本为空——请写 score(fx)，或点「载入示例」' };
+    try {
+      const f = new Function('"use strict";' + src +
+        '\n;return { score: (typeof score === "function") ? score : null,' +
+        '           want:  (typeof want  === "function") ? want  : null };')();
+      if (!f.score) return { error:'脚本里必须定义 score(fx) 函数（返回 { s: 0~1, t: 理由 }）' };
+      return f;
+    } catch(e){
+      if (e && e.name === 'EvalError')
+        return { error:'当前窗口禁止执行动态脚本（CSP 缺 unsafe-eval）——自定义策略只能在系统浏览器中运行（双击 打开仪表盘.bat）' };
+      return { error:'语法错误：' + (e && e.message ? e.message : String(e)) };
+    }
+  }
 
   function fxDelta(fx, key, lo, hi){
     const v = fx[key];
@@ -5289,6 +5345,7 @@ async function boot(){
     const vr = isNaN(st.vr) ? 1 : st.vr;
     const tr = isNaN(st.tr) ? 0 : st.tr;
     const c = function(v, a, b){ return clamp2((v - a) / (b - a), 0, 1); };
+    if (sk === 'custom') return 2.0 * c(p, -.03, .10) + 1.2 * c(vr, 0, 3) + .6 * c(tr, 0, 15);
     if (sk === 'momo') return 2.0 * c(p, -.03, .10) + 1.2 * c(vr, 0, 3) + .6 * c(tr, 0, 15);
     if (sk === 'rebound') return 1.6 * (1 - Math.min(1, Math.abs(p - .01) / .08)) + .5 * c(tr, 0, 10) + .4 * c(-p, -.05, .11);
     return 2.4 * c(p, 0, .10) + 1.2 * c(vr, 0, 4) + .4 * c(tr, 0, 12);
@@ -5350,6 +5407,13 @@ async function boot(){
       const topN = +$('pkTopN').value;
       const sel = PK_BOARDS.filter(function(b){ return $('pkb_' + b.key).classList.contains('on'); });
       if (!sel.length){ $('pkErr').innerHTML = '<b>请至少勾选一个板块。</b>'; $('pkErr').classList.add('on'); return; }
+      const useCustom = $('pkCustom').checked;
+      let pkC = null;
+      if (useCustom){
+        pkC = pkCompile();
+        if (pkC.error){ $('pkErr').innerHTML = '<b>✎ 自定义策略脚本：</b>' + pkC.error; $('pkErr').classList.add('on'); return; }
+      }
+      PK.lastCustom = useCustom; PK.customErrs = 0; PK.customErrMsg = '';
       pkProg(2, '①/⑥ 判定市场状态：拉取基准指数 K 线…');
 
       const need = {}; sel.forEach(function(b){ need[PK_BENCH[b.key]] = 1; });
@@ -5372,21 +5436,31 @@ async function boot(){
       const pool = [];
       pools.forEach(function(arr, i){
         $('pkc_' + sel[i].key).textContent = arr.length;
-        arr.forEach(function(st){ st.strat = regimes[PK_BENCH[st.board.key]].strat; pool.push(st); });
+        arr.forEach(function(st){ st.strat = useCustom ? 'custom' : regimes[PK_BENCH[st.board.key]].strat; pool.push(st); });
       });
       if (!pool.length){ $('pkErr').innerHTML = '<b>候选池为空。</b>各板块均未取到有效标的，请稍后重试。'; $('pkErr').classList.add('on'); return; }
 
       pkProg(30, '③/⑥ 初筛：池 ' + pool.length + ' 只 → 粗评分层…');
       pool.forEach(function(st){ st.pre = pkPre(st, st.strat); });
       const shortlist = [], seen = {};
-      sel.forEach(function(b){
-        ['momo','rebound','breakout'].forEach(function(sk){
-          pool.filter(function(st){ return st.board.key === b.key && st.strat === sk; })
+      if (useCustom){
+        /* 自定义策略：不按内置三策略分层，各板块按通用强度直接取前 16 */
+        sel.forEach(function(b){
+          pool.filter(function(st){ return st.board.key === b.key; })
               .sort(function(a, b2){ return b2.pre - a.pre; })
-              .slice(0, 10)
+              .slice(0, 16)
               .forEach(function(st){ if (!seen[st.code]){ seen[st.code] = 1; shortlist.push(st); } });
         });
-      });
+      } else {
+        sel.forEach(function(b){
+          ['momo','rebound','breakout'].forEach(function(sk){
+            pool.filter(function(st){ return st.board.key === b.key && st.strat === sk; })
+                .sort(function(a, b2){ return b2.pre - a.pre; })
+                .slice(0, 10)
+                .forEach(function(st){ if (!seen[st.code]){ seen[st.code] = 1; shortlist.push(st); } });
+          });
+        });
+      }
       shortlist.sort(function(a, b2){ return b2.pre - a.pre; });
       const cand = shortlist.slice(0, 48);
 
@@ -5404,13 +5478,33 @@ async function boot(){
           if ($('pkExNew').checked && k.length < 40) continue;
           const fx = pkFactors(st, k);
           if (!fx) continue;
-          const r = pkScore(fx, st.strat);
-          res.push({ st: st, score: r.score, reasons: r.reasons });
+          if (useCustom){
+            /* ✎ 自定义策略：want 门槛 + score 评分，单只抛错按 0 分跳过并计数 */
+            try {
+              if (pkC.want && !pkC.want(fx)) continue;
+              const rr = pkC.score(fx);
+              const s2 = (typeof rr === 'number') ? rr : (rr && typeof rr.s === 'number' ? rr.s : 0);
+              const t2 = (rr && typeof rr === 'object' && rr.t) ? [String(rr.t)] : [];
+              res.push({ st: st, score: Math.round(clamp2(s2, 0, 1) * 100), reasons: t2 });
+            } catch(e2){
+              PK.customErrs++;
+              if (!PK.customErrMsg) PK.customErrMsg = st.name + '：' + (e2 && e2.message ? e2.message : String(e2));
+              continue;
+            }
+          } else {
+            const r = pkScore(fx, st.strat);
+            res.push({ st: st, score: r.score, reasons: r.reasons });
+          }
         }
       }
       const ws = []; for (let i = 0; i < CONC; i++) ws.push(worker());
       await Promise.all(ws);
-      if (!res.length){ $('pkErr').innerHTML = '<b>K 线数据全部拉取失败。</b>请稍后重试，或先双击「打开仪表盘.bat」。'; $('pkErr').classList.add('on'); return; }
+      if (!res.length){
+        const msg = useCustom
+          ? '<b>没有标的通过自定义策略。</b>候选全部被 want() 门槛剔除' + (PK.customErrs ? '，且有 ' + PK.customErrs + ' 只在脚本中抛错（示例：' + PK.customErrMsg + '）' : '') + '——可放宽门槛或修正脚本后重试。'
+          : '<b>K 线数据全部拉取失败。</b>请稍后重试，或先双击「打开仪表盘.bat」。';
+        $('pkErr').innerHTML = msg; $('pkErr').classList.add('on'); return;
+      }
 
       /* ⑤ 消息面：技术分靠前的 2×TopN（封顶 30）拉个股资讯，情绪并入总分 */
       res.sort(function(a, b2){ return b2.score - a.score; });
@@ -5492,27 +5586,37 @@ async function boot(){
     $('pkStratSec').style.display = '';
     $('pkRegime').innerHTML = benchIds.filter(function(s){ return regimes[s]; }).map(function(s){
       const r = regimes[s];
+      const rd = PK.lastCustom
+        ? '✎ ' + r.txt + '（仅供参考）· 本轮执行自定义策略'
+        : PK_STRATS[r.strat].icon + ' ' + r.txt + ' → ' + PK_STRATS[r.strat].name;
       return '<div class="pk-rg ' + r.cls + '">' +
         '<div class="nm"><b>' + PK_BENCH_NAME[s] + '</b><span class="mono">' + fpct(r.chg20) + ' /20日</span></div>' +
         '<div class="st">MA20 五日斜率 <b class="mono">' + (r.slope >= 0 ? '+' : '') + (r.slope * 100).toFixed(2) + '%</b>，收盘距 MA20 <b class="mono">' + fpct(r.pos) + '</b></div>' +
-        '<div class="rd">' + PK_STRATS[r.strat].icon + ' ' + r.txt + ' → ' + PK_STRATS[r.strat].name + '</div></div>';
+        '<div class="rd">' + rd + '</div></div>';
     }).join('');
 
-    const used = {};
-    sel.forEach(function(b){ used[regimes[PK_BENCH[b.key]].strat] = 1; });
-    const usedKeys = Object.keys(used);
-    $('pkNote').innerHTML = '本轮自主判定：' +
-      sel.map(function(b){ return '<b>' + b.label + '</b>→' + PK_STRATS[regimes[PK_BENCH[b.key]].strat].name; }).join('，') + '。' +
-      (usedKeys.length === 1
-        ? '所有勾选板块处于同一市场状态，统一执行 <b>' + PK_STRATS[usedKeys[0]].name + '</b> 策略。' + PK_STRATS[usedKeys[0]].desc
-        : '各板块市场状态分化，按各自基准指数分别执行对应策略。');
-    $('pkStratSub').textContent = '因子权重 · ' + usedKeys.map(function(k){ return PK_STRATS[k].name; }).join(' / ');
+    if (PK.lastCustom){
+      $('pkNote').innerHTML = '本轮执行 <b>✎ 自定义策略</b>：按你写的 score(fx) 评分选股（技术分 = s×100，消息面仍按 15% 并入），以上市场状态判定仅供参考。' +
+        (PK.customErrs ? '<div style="margin-top:5px;color:var(--amber)">⚠ 有 ' + PK.customErrs + ' 只在脚本中抛错已跳过（示例：' + PK.customErrMsg + '）</div>' : '');
+      $('pkStratSub').textContent = '自定义策略 · score(fx) 你说了算';
+      $('pkW').innerHTML = '<span class="pk-wchip"><b>✎</b> 自定义评分 <span style="opacity:.4">· 你写的 score(fx)</span></span>';
+    } else {
+      const used = {};
+      sel.forEach(function(b){ used[regimes[PK_BENCH[b.key]].strat] = 1; });
+      const usedKeys = Object.keys(used);
+      $('pkNote').innerHTML = '本轮自主判定：' +
+        sel.map(function(b){ return '<b>' + b.label + '</b>→' + PK_STRATS[regimes[PK_BENCH[b.key]].strat].name; }).join('，') + '。' +
+        (usedKeys.length === 1
+          ? '所有勾选板块处于同一市场状态，统一执行 <b>' + PK_STRATS[usedKeys[0]].name + '</b> 策略。' + PK_STRATS[usedKeys[0]].desc
+          : '各板块市场状态分化，按各自基准指数分别执行对应策略。');
+      $('pkStratSub').textContent = '因子权重 · ' + usedKeys.map(function(k){ return PK_STRATS[k].name; }).join(' / ');
 
-    let w = '';
-    usedKeys.forEach(function(k){
-      PK_STRATS[k].factors.forEach(function(f){ w += '<span class="pk-wchip"><b>' + f.w + '</b> ' + f.label + ' <span style="opacity:.4">· ' + PK_STRATS[k].name + '</span></span>'; });
-    });
-    $('pkW').innerHTML = w;
+      let w = '';
+      usedKeys.forEach(function(k){
+        PK_STRATS[k].factors.forEach(function(f){ w += '<span class="pk-wchip"><b>' + f.w + '</b> ' + f.label + ' <span style="opacity:.4">· ' + PK_STRATS[k].name + '</span></span>'; });
+      });
+      $('pkW').innerHTML = w;
+    }
 
     $('pkResSec').style.display = '';
     $('pkResSub').textContent = '候选池 ' + poolSize + ' 只 · 深度评分完成' +
@@ -5673,6 +5777,28 @@ async function boot(){
         box.appendChild(el);
       });
       $('pkGo').addEventListener('click', pkRun);
+      /* ✎ 自定义策略：脚本持久化 + 勾选态记忆 + 示例载入 */
+      const pkTa = $('pkCode');
+      try {
+        pkTa.value = localStorage.getItem(PK_CODE_KEY) || PK_DEMO;
+        $('pkCustom').checked = localStorage.getItem('pk_custom_on') === '1';
+      } catch(e){ pkTa.value = PK_DEMO; }
+      $('pkCodeWrap').style.display = $('pkCustom').checked ? '' : 'none';
+      $('pkCustom').addEventListener('change', function(){
+        $('pkCodeWrap').style.display = this.checked ? '' : 'none';
+        $('pkCodeStat').textContent = '';
+        try { localStorage.setItem('pk_custom_on', this.checked ? '1' : '0'); } catch(e){}
+      });
+      $('pkCodeDemo').addEventListener('click', function(){
+        pkTa.value = PK_DEMO;
+        try { localStorage.setItem(PK_CODE_KEY, pkTa.value); } catch(e){}
+        $('pkCodeStat').textContent = '✓ 已载入示例';
+      });
+      pkTa.addEventListener('blur', function(){
+        try { localStorage.setItem(PK_CODE_KEY, pkTa.value); } catch(e){}
+        $('pkCodeStat').textContent = '✓ 已保存';
+        setTimeout(function(){ const s2 = $('pkCodeStat'); if (s2) s2.textContent = ''; }, 2200);
+      });
       /* 点股票名跳 K 线工作台（结果表与追踪表共用） */
       const pkGoK = function(e){
         const el = e.target.closest('.pkk');
