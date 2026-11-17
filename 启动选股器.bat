@@ -15,7 +15,7 @@ rem  webview) block direct calls to quote servers; the relay fetches
 rem  the data locally and hands it back.
 rem  Usage:
 rem    double-click          -> start relay + open picker
-rem    启动选股器.bat news    -> run relay service in foreground only
+rem    launcher.bat news    -> run relay service in foreground only
 rem ===========================================================
 
 if /I "%~1"=="news" goto :foreground
