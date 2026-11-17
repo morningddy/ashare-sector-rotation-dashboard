@@ -18,6 +18,8 @@ import sys
 import threading
 import time
 import traceback
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -73,6 +75,69 @@ def _allow_request(ip: str) -> tuple[bool, int]:
                     _api_hits.pop(k, None)
         wait = max(0, int(RATE_WINDOW - (now - start)))
         return cnt <= RATE_LIMIT, wait
+
+
+# ---------------- 行情中转（/api/relay） ----------------
+# 用途：预览面板 / 内嵌 webview / 公司网络会拦截对行情 CDN 的直连（CSP 或出口策略），
+# 浏览器端 fetch 全部失败。此时页面改走 http://127.0.0.1:8510/api/relay?u=<原地址>，
+# 由本机 Python 侧代为请求，再把原始字节原样回传（GBK 编码保持不动，前端自己解码）。
+RELAY_HOSTS = {
+    # 腾讯
+    "qt.gtimg.cn", "web.ifzq.gtimg.cn", "ifzq.gtimg.cn", "proxy.finance.qq.com",
+    "smartbox.gtimg.cn", "web.sqt.gtimg.cn",
+    # 东方财富
+    "push2.eastmoney.com", "push2delay.eastmoney.com", "push2his.eastmoney.com",
+    "push2ex.eastmoney.com", "searchapi.eastmoney.com", "datacenter-web.eastmoney.com",
+    "np-anotice-stock.eastmoney.com",
+    # 新浪（备源）
+    "hq.sinajs.cn", "money.finance.sina.com.cn",
+}
+RELAY_MAX_BYTES = 4 * 1024 * 1024          # 单次响应上限，防被塞大文件
+RELAY_TIMEOUT = 15
+RELAY_LIMIT = 3000                         # 中转是浏览器发起的批量请求，限流放宽
+_relay_hits: dict[str, tuple[float, int]] = {}
+_relay_lock = threading.Lock()
+# 显式绕开系统代理：公司/本机代理常把 https 打成 502，行情接口必须直连
+_relay_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+_relay_ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+             "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+
+
+def _allow_relay(ip: str) -> tuple[bool, int]:
+    now = time.time()
+    with _relay_lock:
+        start, cnt = _relay_hits.get(ip, (now, 0))
+        if now - start >= RATE_WINDOW:
+            start, cnt = now, 0
+        cnt += 1
+        _relay_hits[ip] = (start, cnt)
+        wait = max(0, int(RATE_WINDOW - (now - start)))
+        return cnt <= RELAY_LIMIT, wait
+
+
+def _relay_fetch(target: str) -> tuple[int, bytes, str]:
+    """按白名单代取远端资源，返回 (状态码, 原始字节, Content-Type)。"""
+    p = urlparse(target)
+    if p.scheme not in ("http", "https"):
+        raise ValueError("only http/https allowed")
+    host = (p.hostname or "").lower()
+    if host not in RELAY_HOSTS:
+        raise PermissionError(f"host not allowed: {host}")
+    req = urllib.request.Request(target, headers={
+        "User-Agent": _relay_ua,
+        "Accept": "*/*",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        "Referer": "https://gu.qq.com/",
+    })
+    try:
+        with _relay_opener.open(req, timeout=RELAY_TIMEOUT) as r:
+            body = r.read(RELAY_MAX_BYTES + 1)
+            if len(body) > RELAY_MAX_BYTES:
+                raise ValueError("response too large")
+            return r.status, body, r.headers.get("Content-Type") or "application/octet-stream"
+    except urllib.error.HTTPError as e:
+        body = e.read()[:2048] or b""
+        return e.code, body, e.headers.get("Content-Type") or "text/plain; charset=utf-8"
 
 # ---------------- 全局新闻池（后台线程维护，days=1 实时档） ----------------
 _pool: list[dict] = []
@@ -215,7 +280,8 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(u.query)
 
         # 限流只作用于 API（静态首页不受影响），防止被刷爆免费数据源
-        if u.path.startswith("/api/"):
+        # 中转接口有独立（更宽松）的限额，见下面 /api/relay 分支
+        if u.path.startswith("/api/") and u.path != "/api/relay":
             ok, wait = _allow_request(_client_ip(self))
             if not ok:
                 self._json({"error": "rate_limited", "retry_after": wait,
@@ -265,11 +331,42 @@ class Handler(BaseHTTPRequestHandler):
                 print(f"[news-live] quote failed for {code}: {e}")
             self._json({"quote": row or {}, "code": code})
 
+        elif u.path == "/api/relay":
+            # 只服务本机页面：这是给"浏览器直连被拦"的本地兜底，不能当公网代理用
+            peer = self.client_address[0] if self.client_address else ""
+            if peer not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+                self._json({"error": "relay_local_only",
+                            "message": "行情中转仅在 127.0.0.1 上可用"}, 403)
+                return
+            ok, wait = _allow_relay(_client_ip(self))
+            if not ok:
+                self._json({"error": "rate_limited", "retry_after": wait}, 429,
+                           {"Retry-After": str(wait)})
+                return
+            target = (q.get("u") or [""])[0].strip()
+            if not target:
+                self._json({"error": "missing u", "hint": "/api/relay?u=<url encoded>"}, 400)
+                return
+            try:
+                code, body, ctype = _relay_fetch(target)
+            except PermissionError as e:
+                self._json({"error": "host_not_allowed" if "not allowed" in str(e) else str(e)},
+                           403)
+                return
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": "relay_failed", "detail": f"{type(e).__name__}: {e}"[:300]},
+                           502)
+                return
+            # 原样回传字节（GBK 保持不动），前端用 TextDecoder 自行解码
+            self._send(200 if code == 200 else 502, body, ctype,
+                       {"X-Relay-Status": str(code), "X-Relay-Host": urlparse(target).hostname or ""})
+
         elif u.path == "/api/health":
             with _pool_lock:
                 n = len(_pool)
                 ts = _pool_ts
             self._json({"ok": True, "pool_size": n,
+                        "relay": True, "relay_hosts": len(RELAY_HOSTS),
                         "pool_age_sec": round(time.time() - ts) if ts else None,
                         "last_refresh": _last_refresh_result,
                         "refreshing": _refreshing})

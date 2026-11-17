@@ -281,6 +281,9 @@ footer{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-si
 .dis{padding:10px 12px;border-radius:6px;background:rgba(255,255,255,.017);border:1px solid var(--line);color:#6b7a8e;font-size:10px;line-height:1.8}
 .tag-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
 .tag{font-size:9.5px;font-family:var(--mono);color:var(--dim2);border:1px solid var(--line);border-radius:3px;padding:2px 6px}
+/* 本地中转生效指示：直连被封时出现，平时不占位 */
+.tag.rlychip{display:none;color:var(--cyan);border-color:rgba(34,211,238,.42);background:rgba(34,211,238,.07)}
+.tag.rlychip.on{display:inline-block;cursor:help}
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-track{background:#070a0f}
 ::-webkit-scrollbar-thumb{background:#1d2637;border-radius:5px}
@@ -294,6 +297,9 @@ footer{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-si
   padding:1px 6px;color:#9fd0ff;font-family:ui-monospace,Consolas,monospace;font-size:11.5px}
 .envwarn .p{display:inline-flex;gap:6px;align-items:center;margin-right:16px;font-family:ui-monospace,Consolas,monospace;font-size:11.5px}
 .envwarn .ok{color:#3fd98a}.envwarn .no{color:#ff6b6b}
+/* 中转生效时的绿色提示（同样占位，但语气是"已处理"而非"故障"） */
+.envwarn.good .box{border-color:rgba(63,217,138,.34);background:linear-gradient(180deg,#0e1f17,#0b1512);color:#a9e6c3}
+.envwarn.good .h{color:#3fd98a}
 
 /* ===== 页面导航（盘面 / 回测） ===== */
 .pagenav{max-width:1480px;margin:0 auto;padding:0 26px 11px;display:flex;gap:8px;flex-wrap:wrap}
@@ -939,6 +945,7 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
       <span class="tag">ATR-CLUSTERED LEVELS</span>
       <span class="tag">T+1 BACKTEST ENGINE</span>
       <span class="tag" data-build="1">BUILD —</span>
+      <span class="tag rlychip" id="rlyChip" title="此窗口直连行情源被拦截，数据经本机 news-live 服务（127.0.0.1:8510）中转取回；用系统浏览器打开则自动走直连">⇄ 本地中转</span>
     </div>
   </footer>
 
@@ -985,7 +992,24 @@ async function jsonpR(url, timeout = 12000){
     try { return await jsonp(urls[i], timeout); }
     catch(e){ err = e; if (i < urls.length - 1) await new Promise(r => setTimeout(r, 2000)); }
   }
+  /* script 注入被 CSP 拦死时，改由本地中转取 JSONP 文本，剥壳后当 JSON 解析 */
+  if (await rlyProbe()){
+    for (let i = 0; i < urls.length; i++){
+      try { return await relayJsonp(urls[i], timeout); }
+      catch(e){ err = e; }
+    }
+  }
   throw err;
+}
+
+async function relayJsonp(url, timeout){
+  const txt = await fetchTextRaw(relayUrl(url), 'utf-8', timeout || 12000);
+  rlyMark();
+  const s = String(txt).trim();
+  if (s.charAt(0) === '{' || s.charAt(0) === '[') return JSON.parse(s);
+  const m = s.match(/^[^({]*\(([\s\S]*)\)\s*;?\s*$/);
+  if (!m) throw new Error('relay jsonp unparsable');
+  return JSON.parse(m[1]);
 }
 
 /* ==========================================================================
@@ -1048,6 +1072,95 @@ async function txFetchText(url, enc, timeout){
 }
 
 /* 网络可达性探针（no-cors：只判能不能连上，不读内容） */
+/* --------------------------------------------------------------------------
+   本地中转（news-live :8510 的 /api/relay）
+   预览面板、内嵌 webview、部分公司网络会拦截对行情 CDN 的直连（CSP 或出口策略），
+   浏览器端 fetch 全部失败。此时改由本机 Python 服务代取，原始字节原样回传，
+   前端解码逻辑完全不变（GBK / JSON / JSONP 都照旧）。
+   —— 没有启动 news-live 时这段静默降级，不影响原来的直连路径。
+   -------------------------------------------------------------------------- */
+const RLY_BASES = ['http://127.0.0.1:8510', 'http://localhost:8510'];
+const RLY = { ok: false, base: '', pending: null, nextTry: 0, hosts: 0 };
+const NET = { direct: null };          /* null=未知 true=直连可用 false=直连被封 */
+let envRetried = false;
+
+function relayUrl(u){ return RLY.base + '/api/relay?u=' + encodeURIComponent(u); }
+
+/* 一次中转成功就把"⇄ 本地中转"点亮，让用户知道数据是怎么来的 */
+function rlyMark(){
+  if (NET.direct === null) NET.direct = false;
+  RLY.used = true;
+  const el = document.getElementById('rlyChip');
+  if (el && !el.classList.contains('on')) el.classList.add('on');
+}
+
+function rlyProbe(){
+  if (RLY.ok) return Promise.resolve(true);
+  if (RLY.pending) return RLY.pending;
+  if (Date.now() < RLY.nextTry) return Promise.resolve(false);
+  const p = (async function(){
+    for (let i = 0; i < RLY_BASES.length; i++){
+      const base = RLY_BASES[i];
+      const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      const t = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 2500);
+      try {
+        const r = await fetch(base + '/api/health', { cache: 'no-store',
+                        signal: ctrl ? ctrl.signal : undefined });
+        if (r.ok){
+          let j = null;
+          try { j = await r.json(); } catch(e){ j = null; }
+          if (j && j.relay === true){          /* 老版本服务没有 relay 字段，不能用 */
+            RLY.ok = true; RLY.base = base; RLY.hosts = j.relay_hosts || 0;
+            return true;
+          }
+        }
+      } catch(e){ /* 服务没起 / 端口不通 */ }
+      finally { clearTimeout(t); }
+    }
+    RLY.nextTry = Date.now() + 20000;         /* 失败后 20 秒内不再重试，避免反复空转 */
+    return false;
+  })();
+  RLY.pending = p;
+  p.then(function(){ RLY.pending = null; }, function(){ RLY.pending = null; });
+  return p;
+}
+
+/* 物理取文本：不改写任何解码逻辑，只负责把字节拿到 */
+async function fetchTextRaw(url, enc, timeout){
+  const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, timeout || 12000);
+  try {
+    const res = await fetch(url, { cache: 'no-store', credentials: 'omit',
+                                   signal: ctrl ? ctrl.signal : undefined });
+    if (!res.ok) throw new Error('http ' + res.status);
+    const buf = await res.arrayBuffer();
+    try { return new TextDecoder(enc || 'utf-8').decode(buf); }
+    catch(e){ return new TextDecoder('utf-8').decode(buf); }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* 对外统一入口：直连 → 失败走本地中转；已知直连被封时反过来 */
+async function txFetchText(url, enc, timeout){
+  const to = timeout || 12000;
+  const viaRelay = async function(){
+    if (!(await rlyProbe())) throw new Error('relay unavailable');
+    const txt = await fetchTextRaw(relayUrl(url), enc, to);
+    rlyMark();
+    return txt;
+  };
+  if (NET.direct === false){
+    try { return await viaRelay(); }
+    catch(e){ return await fetchTextRaw(url, enc, to); }
+  }
+  try { return await fetchTextRaw(url, enc, to); }
+  catch(e){
+    try { return await viaRelay(); }
+    catch(e2){ throw e; }                   /* 两条路都不通，报直连的原始错误 */
+  }
+}
+
 async function netProbe(url, timeout){
   const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   const timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, timeout || 6000);
@@ -2844,7 +2957,7 @@ async function refreshSectors(){
    预览面板等嵌入环境可能限制外部脚本/请求；一旦全源不通，明确告知原因，
    而不是让用户以为页面坏了。
    ========================================================================== */
-const BUILD_TAG = 'BUILD 11-17 21:00';
+const BUILD_TAG = 'BUILD 11-17 21:44';
 let envChecked = false, envRunning = false;
 
 function selfPath(){
@@ -2865,26 +2978,67 @@ async function runEnvCheck(){
   ];
   const out = [];
   for (let i = 0; i < items.length; i++){
-    out.push({ n: items[i].n, ok: await netProbe(items[i].u, 6000) });
+    out.push({ n: items[i].n, u: items[i].u, ok: await netProbe(items[i].u, 6000) });
   }
   const el = document.getElementById('envWarn'), body = document.getElementById('envWarnBody');
   if (!el || !body) { envRunning = false; return; }
 
   const allFail = out.every(function(x){ return !x.ok; });
-  if (!allFail){ el.classList.remove('on'); envRunning = false; return; }
+  if (!allFail){ NET.direct = true; el.classList.remove('on', 'good'); envRunning = false; return; }
+
+  /* 直连全挂 —— 先看本机 news-live 中转是否在跑，在跑就直接切过去把数据救回来 */
+  const rly = await rlyProbe();
+  if (rly){
+    NET.direct = false;
+    for (let i = 0; i < out.length; i++){
+      out[i].rly = await netProbe(relayUrl(out[i].u), 8000);
+    }
+    const rlyOk = out.some(function(x){ return x.rly; });
+    if (rlyOk){
+      el.classList.add('on', 'good');
+      body.innerHTML =
+        '<div class="h">✓ 直连被此窗口拦截，已自动切换到本机中转取数（数据正常）</div>'
+        + '<div style="margin-bottom:7px">' + out.map(function(x){
+            return '<span class="p ' + (x.rly ? 'ok' : 'no') + '">' + (x.rly ? '✓' : '✗') + ' '
+              + x.n + ' <span style="opacity:.55">via 127.0.0.1</span></span>';
+          }).join('') + '</div>'
+        + '此窗口的嵌入浏览器禁止页面直连外部接口，行情改由本地 <code>news-live</code> 服务（端口 8510）代取，'
+        + '功能不受影响，只是每次请求多一跳。<b>用系统浏览器打开会更快</b>：双击 <code>打开仪表盘.bat</code>。'
+        + '<br><span style="opacity:.7">中转服务没启动时本页会退回离线快照——启动方式同上。</span>';
+      if (!envRetried){ envRetried = true; setTimeout(rlyReload, 60); }
+      envRunning = false;
+      return;
+    }
+  }
 
   const p = selfPath();
+  el.classList.remove('good');
+  el.classList.add('on');
   body.innerHTML =
     '<div class="h">⚠ 当前窗口无法访问行情服务器 —— 是运行环境的网络/安全策略限制，不是页面故障</div>'
     + '<div style="margin-bottom:7px">' + out.map(function(x){
         return '<span class="p ' + (x.ok ? 'ok' : 'no') + '">' + (x.ok ? '✓' : '✗') + ' ' + x.n + '</span>';
       }).join('') + '</div>'
-    + '此窗口的嵌入浏览器禁止加载外部接口（CSP / 沙箱网络限制），任何依赖联网的页面在这里都会这样。'
-    + '<br>解决办法：<b>用系统浏览器打开本文件</b> —— 双击已生成的 <code>打开仪表盘.bat</code>，'
-    + '或直接在浏览器地址栏粘贴 <code>' + p + '</code>'
+    + (rly
+        ? '本地中转服务已在运行，但它同样取不到数据（上游接口可能全挂），请稍后刷新重试。'
+        : '此窗口的嵌入浏览器禁止加载外部接口（CSP / 沙箱网络限制），任何依赖联网的页面在这里都会这样。'
+          + '<br><b>最省事的解法</b>：双击 <code>打开仪表盘.bat</code>，它会同时启动本地中转服务并调用系统浏览器打开本页；'
+          + '之后即使仍在这个预览窗口里，也会自动走中转取数。')
+    + '<br>或者直接在浏览器地址栏粘贴 <code>' + p + '</code>'
     + '<br>页面在此环境下会继续显示离线快照，并在每次刷新时自动重试。';
-  el.classList.add('on');
   envRunning = false;
+}
+
+/* 中转可用后重跑一遍数据加载（此前全是快照） */
+async function rlyReload(){
+  try {
+    const rs = await Promise.allSettled([fetchIndices(), fetchStyle()]);
+    if (rs[0].status === 'rejected') renderFallbackIndices();
+  } catch(e){}
+  refreshSectors().catch(function(){ if (!sectorData) renderFallbackSectors(); });
+  if (state.secid){
+    loadStock(state.secid, state.code, state.name, '').catch(function(){});
+  }
 }
 
 /* ==========================================================================
@@ -3519,7 +3673,13 @@ function btCustomCompile(src, bars, closes, pv){
       '\n;return [ (typeof buy === "function" ? buy : null), (typeof sell === "function" ? sell : null) ];'
     )(closes, O, H, L, V, D, EMA, ATR, HH, LL, MACD, KDJ, RSI, pv || {});
   } catch(e){
-    return { error: '脚本无法执行：' + (e && e.message ? e.message : String(e)) };
+    const msg = e && e.message ? e.message : String(e);
+    /* 嵌入环境若禁止 eval（CSP 无 unsafe-eval），自定义脚本无法编译——说清楚而不是抛原文 */
+    if (/unsafe-eval|Content Security Policy|EvalError|Refused to evaluate/i.test(msg)){
+      return { error: '当前窗口禁止执行动态脚本（CSP 缺 unsafe-eval），',
+               error2: '自定义策略只能在系统浏览器里跑：双击 打开仪表盘.bat 打开本页' };
+    }
+    return { error: '脚本无法执行：' + msg };
   }
   if (!out[0] && !out[1]) return { error: '脚本里没有定义 buy(i) 或 sell(i, pos) 函数' };
   return { buy: out[0], sell: out[1] };
@@ -3627,8 +3787,9 @@ function btRun(){
     btCodeSave();
     const cc = btCustomCompile($('btCode').value, bars, closes);
     if (cc.error){
-      btCodeStat('✗ ' + cc.error, true);
-      $('btInfo').innerHTML = '<span style="color:var(--amber)">' + cc.error + '，请修改脚本后重试</span>';
+      const full = cc.error + (cc.error2 ? '；' + cc.error2 : '');
+      btCodeStat('✗ ' + full, true);
+      $('btInfo').innerHTML = '<span style="color:var(--amber)">' + full + '</span>';
       return;
     }
     ub = cc.buy; us = cc.sell;
@@ -4296,7 +4457,7 @@ async function labOpt(){
   for (let ci = 0; ci < combos.length; ci++){
     const pv = { p1: combos[ci].p1, p2: combos[ci].p2, p3: combos[ci].p3 };
     const cc = btCustomCompile(src, bars, closes, pv);
-    if (cc.error){ labCodeStat('✗ ' + cc.error, true); LAB.busy = false; return; }
+    if (cc.error){ labCodeStat('✗ ' + cc.error + (cc.error2 ? '；' + cc.error2 : ''), true); LAB.busy = false; return; }
     let r;
     try { r = labEngine(bars, labP(pv), cc.buy, cc.sell); }
     catch(e){ labCodeStat('✗ 脚本抛错：' + (e && e.message ? e.message : e), true); LAB.busy = false; return; }

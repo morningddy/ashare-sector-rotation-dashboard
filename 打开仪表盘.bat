@@ -93,8 +93,8 @@ if not defined PY (
 )
 if not exist "%PY%" goto :nopy
 echo ==========================================================
-echo   news-live  local news service
-echo   http://127.0.0.1:8510
+echo   news-live  local news service + quote relay
+echo   http://127.0.0.1:8510   (/api/relay = quote relay)
 echo   keep this window open  -  Ctrl+C to stop
 echo ==========================================================
 echo.
