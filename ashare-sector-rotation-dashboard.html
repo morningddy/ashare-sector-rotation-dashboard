@@ -832,6 +832,7 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
           <span class="lb">✎ 自定义策略脚本 —— 定义 <b>buy(i)</b> 与 <b>sell(i, pos)</b></span>
           <button type="button" class="mini" id="btCodeDemo">示例:突破/金叉</button>
           <button type="button" class="mini" id="btCodeMkdj">MACD+KDJ共振</button>
+          <button type="button" class="mini" id="btCodePicker">选股同款三策略</button>
           <button type="button" class="mini" id="btCodeReset">恢复默认</button>
           <span class="stat" id="btCodeStat"></span>
         </div>
@@ -910,6 +911,7 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
         <button type="button" class="mini" id="labT2">N日突破</button>
         <button type="button" class="mini" id="labT3">MACD+KDJ共振</button>
         <button type="button" class="mini" id="labT4">RSI超卖+趋势</button>
+        <button type="button" class="mini" id="labT5">选股同款三策略</button>
         <button type="button" class="mini" id="labTreset">恢复默认</button>
         <span class="lab-stat" id="labCodeStat"></span>
       </div>
@@ -3101,7 +3103,7 @@ async function refreshSectors(){
    预览面板等嵌入环境可能限制外部脚本/请求；一旦全源不通，明确告知原因，
    而不是让用户以为页面坏了。
    ========================================================================== */
-const BUILD_TAG = 'BUILD 11-17 21:44';
+const BUILD_TAG = 'BUILD 11-17 22:46';
 let envChecked = false, envRunning = false;
 
 function selfPath(){
@@ -3672,6 +3674,75 @@ const BT_MKDJ = [
   '}'
 ].join('\n');
 
+/* 模板：自动选股同款 · 三策略自适应（与「自动选股」页同一套市场状态判定） */
+const PICKER_STRAT = [
+  '/* ✎ 自动选股同款 · 三策略自适应（回测页与策略实验室共用）',
+  '   每根收盘先判定该股自身市场状态（MA20 五日斜率 + 收盘位置，与「自动选股」页同一口径）：',
+  '     up   → 趋势动量：20日动量足 + 均线多头排列 + 站稳MA20不追高 + 近5日不过热',
+  '     down → 超跌反转：20日深跌 + 负乖离大 + 当日收阳不创10日新低 + MACD拐头',
+  '     flat → 箱体启动：创20日新高 + 当日温和启动 + 放量确认不过热',
+  '   离场：up 跌破MA20（趋势破位）/ down 反弹到MA20兑现 / flat 跌破MA10（假突破回落）',
+  '   P.p1 趋势动量下限 / P.p2 超跌深度阈值 / P.p3 启动量能倍数（缺省 .02 / .15 / 1.5） */',
+  '',
+  'var P1 = P.p1 || .02, P2 = P.p2 || .15, P3 = P.p3 || 1.5;',
+  '',
+  'function sma(i, n){                          /* 简单均线（选股页 MA 口径） */',
+  '  if (i < n - 1) return NaN;',
+  '  var s = 0; for (var k = i - n + 1; k <= i; k++) s += C[k];',
+  '  return s / n;',
+  '}',
+  'function chgN(i, n){ return i >= n ? C[i] / C[i - n] - 1 : NaN; }',
+  'function avgV(i, n){',
+  '  var s = 0; for (var k = i - n + 1; k <= i; k++) s += V[k];',
+  '  return s / n;',
+  '}',
+  'function regime(i){                          /* 市场状态：与自动选股同一判定 */',
+  '  var m = sma(i, 20), m5 = sma(i - 5, 20);',
+  '  if (isNaN(m) || isNaN(m5)) return "";',
+  '  var slope = m / m5 - 1, pos = C[i] / m - 1;',
+  '  if (slope >= .008 && pos >= 0) return "up";',
+  '  if (slope <= -.008 || pos <= -.03) return "down";',
+  '  return "flat";',
+  '}',
+  '',
+  'function buy(i){',
+  '  if (i < 26) return false;',
+  '  var rg = regime(i);',
+  '  if (rg === "up"){                          /* ↗ 趋势动量 */',
+  '    var m5 = sma(i, 5), m10 = sma(i, 10), m20 = sma(i, 20);',
+  '    return chgN(i, 20) >= P1                 /* 20日动量足 */',
+  '        && m5 > m10 && m10 > m20            /* 均线多头排列 */',
+  '        && C[i] > m20 && C[i] / m20 - 1 <= .12   /* 站稳MA20、乖离不过热 */',
+  '        && chgN(i, 5) <= .10;                /* 近5日不过热 */',
+  '  }',
+  '  if (rg === "down"){                        /* ↩ 超跌反转 */',
+  '    var m20b = sma(i, 20);',
+  '    var a = MACD(i), b = MACD(i - 1);',
+  '    return chgN(i, 20) <= -P2                /* 20日深跌 */',
+  '        && C[i] / m20b - 1 <= -.05           /* 负乖离大 */',
+  '        && C[i] > O[i] && L[i] > LL(i, 10)   /* 当日收阳且不创10日新低 */',
+  '        && (a.dif - a.dea) > (b.dif - b.dea);/* MACD拐头修复 */',
+  '  }',
+  '  if (rg === "flat"){                        /* ⤴ 箱体启动 */',
+  '    var pct = C[i] / C[i - 1] - 1;',
+  '    var vb = avgV(i, 5) > 0 ? V[i] / avgV(i, 5) : 99;',
+  '    return C[i] >= HH(i, 20) * .995          /* 创20日新高 */',
+  '        && pct >= .015 && pct <= .07         /* 当日温和启动 */',
+  '        && vb >= P3 && vb <= 6;              /* 放量确认不过热 */',
+  '  }',
+  '  return false;',
+  '}',
+  '',
+  'function sell(i, pos){',
+  '  var rg = regime(i);',
+  '  var m10 = sma(i, 10), m20 = sma(i, 20);',
+  '  if (rg === "up")   return C[i] < m20;                 /* 趋势破位离场 */',
+  '  if (rg === "down") return C[i] / m20 - 1 > -.01;      /* 反弹到MA20兑现 */',
+  '  return C[i] < m10;                                     /* 箱体回落离场 */',
+  '}'
+].join('\n');
+const BT_PICKER = PICKER_STRAT;
+
 function btCodeSave(){
   try { localStorage.setItem(BT_CODE_KEY, $('btCode').value); } catch(e){}
   btCodeStat('');
@@ -3711,6 +3782,7 @@ function btCodeInit(){
     btCodeSave();
   });
   $('btCodeMkdj').addEventListener('click', function(){ ta.value = BT_MKDJ; btCodeSave(); });
+  $('btCodePicker').addEventListener('click', function(){ ta.value = BT_PICKER; btCodeSave(); });
   $('btCodeReset').addEventListener('click', function(){ ta.value = BT_DEMO; btCodeSave(); });
 }
 
@@ -4491,7 +4563,9 @@ const LAB_TEMPLATES = {
     'function sell(i, pos){\n' +
     '  return RSI(i, P.p1) > 70 || C[i] < EMA(i, 60);\n' +
     '}',
-           p: [[true,'RSI周期',14,5,30,1],[true,'RSI阈值',30,20,40,2],[false,'备用',0,1,10,1]] }
+           p: [[true,'RSI周期',14,5,30,1],[true,'RSI阈值',30,20,40,2],[false,'备用',0,1,10,1]] },
+  labT5: { code: PICKER_STRAT,
+           p: [[true,'趋势动量下限',0.02,0,0.15,0.01],[true,'超跌深度阈值',0.15,0.05,0.40,0.05],[true,'启动量能倍数',1.5,1,3,0.25]] }
 };
 
 function labSaveCode(){
@@ -4902,6 +4976,7 @@ function labEnsure(){
   $('labT2').addEventListener('click', function(){ labApplyTemplate('labT2'); });
   $('labT3').addEventListener('click', function(){ labApplyTemplate('labT3'); });
   $('labT4').addEventListener('click', function(){ labApplyTemplate('labT4'); });
+  $('labT5').addEventListener('click', function(){ labApplyTemplate('labT5'); });
   $('labTreset').addEventListener('click', function(){ labApplyTemplate('labT1'); labCodeStat('已恢复默认'); });
   $('labBenchLoad').addEventListener('click', function(){ labLoadBench(); });
   $('labOpt').addEventListener('click', labOpt);
