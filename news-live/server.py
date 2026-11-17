@@ -43,7 +43,7 @@ STATIC_DIR = SELF_DIR / "static"
 REFRESH_SECONDS = 60                                     # 后台自动刷新周期
 
 # ---------------- 简易限流（每 IP 每窗口请求数） ----------------
-RATE_LIMIT = 60            # 窗口内最大请求数（页面本身 1 次/分钟，足够宽松）
+RATE_LIMIT = 180           # 窗口内最大请求数（自动选股一轮会带 20~30 个个股资讯请求，放宽）
 RATE_WINDOW = 60.0         # 窗口秒数
 _api_hits: dict[str, tuple[float, int]] = {}
 _rate_lock = threading.Lock()
