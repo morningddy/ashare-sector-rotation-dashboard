@@ -1,0 +1,11 @@
+{
+  "_说明": "策略实验室无人值守配置。改这里的 strategy 就是改每天自动优化的策略；params 为三个可优化参数的名称/当前值/搜索范围；bench 是寻优用的基准标的（6位代码）。",
+  "bench": "601899",
+  "goal": "sharpe",
+  "params": [
+    { "on": true, "name": "共振窗口", "v": 3, "min": 1, "max": 5, "st": 1 },
+    { "on": true, "name": "KDJ周期", "v": 9, "min": 5, "max": 14, "st": 1 },
+    { "on": false, "name": "备用", "v": 0, "min": 1, "max": 10, "st": 1 }
+  ],
+  "strategy": "/* MACD + KDJ 双金叉共振（P.p1 共振窗口 / P.p2 KDJ 周期） */\nfunction mGold(i){\n  var a = MACD(i), b = MACD(i - 1);\n  return a.dif > a.dea && b.dif <= b.dea;\n}\nfunction jGold(i){\n  var a = KDJ(i, P.p2), b = KDJ(i - 1, P.p2);\n  return a.k > a.d && b.k <= b.d;\n}\nfunction recent(i, fn){\n  for (var k = 0; k < P.p1; k++){ if (fn(i - k)) return true; }\n  return false;\n}\nfunction buy(i){\n  return recent(i, mGold) && recent(i, jGold);\n}\nfunction sell(i, pos){\n  var a = MACD(i), b = MACD(i - 1);\n  var c = KDJ(i, P.p2), e = KDJ(i - 1, P.p2);\n  return (a.dif < a.dea && b.dif >= b.dea) || (c.k < c.d && e.k >= e.d);\n}"
+}

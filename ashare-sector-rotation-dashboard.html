@@ -352,6 +352,39 @@ footer{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-si
 .bt-legend i.buy{border-bottom:9px solid #22d3ee}
 .bt-legend i.sell{border-top:9px solid #00c896}
 .bt-legend i.band{width:12px;height:9px;border-radius:2px;background:rgba(255,77,90,.16);vertical-align:0}
+/* ===== 策略实验室 ===== */
+.lab-ph{padding:11px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--dim);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lab-phsub{font-size:10.5px;color:var(--dim2);font-weight:400}
+.lab-toolbar{display:flex;align-items:center;gap:7px;padding:10px 14px 0;flex-wrap:wrap}
+.lab-stat{font-size:10.5px;color:var(--dim2);margin-left:auto}
+.lab-ta{display:block;width:calc(100% - 28px);margin:10px 14px 0;height:190px;background:#070a0e;color:#cfd8e3;border:1px solid var(--line2);border-radius:8px;padding:10px 12px;font:11.5px/1.65 var(--mono);resize:vertical;outline:none}
+.lab-ta:focus{border-color:rgba(34,211,238,.45)}
+.lab-hint{font-size:10.5px;color:var(--dim2);line-height:1.7;padding:9px 15px 12px}
+.lab-params{padding:6px 14px 12px}
+.lab-pr{display:grid;grid-template-columns:40px 64px 1.2fr 76px 76px 76px 76px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px dashed var(--line2)}
+.lab-pr:last-child{border-bottom:0}
+.lab-prh{font-size:10px;color:var(--dim2);border-bottom:1px solid var(--line)}
+.lab-pr input[type=checkbox]{-webkit-appearance:none;appearance:none;width:15px;height:15px;margin:0;flex:none;border:1px solid var(--line2);border-radius:4px;background:rgba(255,255,255,.03);position:relative;cursor:pointer}
+.lab-pr input[type=checkbox]:checked{background:rgba(34,211,238,.16);border-color:rgba(34,211,238,.55)}
+.lab-pr input[type=checkbox]:checked::after{content:"";position:absolute;left:4.5px;top:1px;width:4px;height:8px;border:solid #22d3ee;border-width:0 1.6px 1.6px 0;transform:rotate(45deg)}
+.lab-pr input:not([type=checkbox]){background:#070a0e;color:#cfd8e3;border:1px solid var(--line2);border-radius:6px;padding:6px 8px;font:11px var(--mono);width:100%;outline:none}
+.lab-pr input:not([type=checkbox]):focus{border-color:rgba(34,211,238,.45)}
+.lab-pr .mono{font-family:var(--mono);color:var(--cyan);font-size:11px}
+.lab-cfg{display:flex;align-items:center;gap:14px;padding:11px 14px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.lab-cfg .f{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--dim)}
+.lab-cfg .f input:not([type=checkbox]){background:#070a0e;color:#cfd8e3;border:1px solid var(--line2);border-radius:6px;padding:6px 8px;font:11px var(--mono);width:74px;outline:none}
+.lab-cfg .f select{background:#070a0e;color:#cfd8e3;border:1px solid var(--line2);border-radius:6px;padding:6px 8px;font:11px var(--mono);outline:none}
+.lab-cfg input[type=checkbox]{-webkit-appearance:none;appearance:none;width:15px;height:15px;margin:0;flex:none;border:1px solid var(--line2);border-radius:4px;background:rgba(255,255,255,.03);position:relative;cursor:pointer}
+.lab-cfg input[type=checkbox]:checked{background:rgba(34,211,238,.16);border-color:rgba(34,211,238,.55)}
+.lab-cfg input[type=checkbox]:checked::after{content:"";position:absolute;left:4.5px;top:1px;width:4px;height:8px;border:solid #22d3ee;border-width:0 1.6px 1.6px 0;transform:rotate(45deg)}
+.lab-benchnm{font-size:11px;color:var(--cyan);font-family:var(--mono)}
+.lab-sub{font-size:11px;color:var(--dim2);font-family:var(--mono);padding:10px 15px;border-bottom:1px solid var(--line)}
+.lab-prog{height:4px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden}
+.lab-prog>div{height:100%;width:0;background:linear-gradient(90deg,#22d3ee,#f5b93b);transition:width .25s;border-radius:2px}
+.bt-tbl td .rowact{background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.35);color:#7fe3f4;border-radius:5px;font-size:10px;font-family:var(--mono);padding:3px 8px;cursor:pointer;margin-right:4px}
+.bt-tbl td .rowact:hover{background:rgba(34,211,238,.22);color:#fff}
+.bt-tbl td.num-red{color:#ff6b76}
+.bt-tbl td.num-grn{color:#2fd8a5}
 .bt-tblwrap{max-height:340px;overflow:auto;border-radius:0 0 11px 11px}
 table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:var(--mono);white-space:nowrap}
 .bt-tbl th{position:sticky;top:0;background:#0c1117;color:var(--dim2);font-weight:500;font-size:10.5px;letter-spacing:.5px;padding:9px 12px;text-align:right;border-bottom:1px solid var(--line2);z-index:2}
@@ -381,6 +414,7 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
   <nav class="pagenav" id="pageNav">
     <button data-page="main" class="on">盘面 · 行情轮动</button>
     <button data-page="bt">回测工作台</button>
+    <button data-page="lab">策略实验室</button>
   </nav>
 </header>
 
@@ -780,7 +814,112 @@ table.bt-tbl{width:100%;border-collapse:collapse;font-size:11.5px;font-family:va
     </div>
   </section>
 
+
 </div><!-- /pageBt -->
+
+  <!-- ======================= 策略实验室：写策略 / 全市场选股 / 每日优化 ======================= -->
+  <section id="pageLab" style="display:none">
+    <div class="shead">
+      <span class="bar"></span>
+      <h2>策略实验室</h2>
+      <span class="sub">写策略 → 网格寻优 → 全市场信号选股 → 每日记录</span>
+    </div>
+
+    <!-- ① 我的策略 -->
+    <div class="panel">
+      <div class="lab-ph">✎ 我的策略脚本
+        <span class="lab-phsub">环境与回测页相同：C/O/H/L/V/D[i]、EMA/ATR/HH/LL/MACD/KDJ/RSI(i,n)、sell 里 pos = { entry, i, sh, stop, tp }；另加 <b>P.p1 / P.p2 / P.p3</b> 三个可优化参数（值由下方参数表提供）</span>
+      </div>
+      <div class="lab-toolbar">
+        <button type="button" class="mini" id="labT1">双均线金叉</button>
+        <button type="button" class="mini" id="labT2">N日突破</button>
+        <button type="button" class="mini" id="labT3">MACD+KDJ共振</button>
+        <button type="button" class="mini" id="labT4">RSI超卖+趋势</button>
+        <button type="button" class="mini" id="labTreset">恢复默认</button>
+        <span class="lab-stat" id="labCodeStat"></span>
+      </div>
+      <textarea id="labCode" class="lab-ta" spellcheck="false"></textarea>
+      <div class="lab-hint">买点在空仓时每根收盘评估，卖点在持仓时评估；撮合口径与回测页一致（T+1 开盘成交、佣金万2.5最低5元、印花税0.05%、滑点0.1%、止损2×ATR/止盈2R）。脚本自动保存在本机浏览器。<br>
+        不会写脚本也没关系——把想法用中文说出来（例：「20日新高且成交量放大1.5倍时买入，跌破10日最低价卖出」），让 WorkBuddy 直接生成脚本贴进来即可。</div>
+    </div>
+
+    <!-- ② 可优化参数 -->
+    <div class="panel" style="margin-top:14px">
+      <div class="lab-ph">⚙ 可优化参数（P.p1 ~ P.p3）<span class="lab-phsub">优化器在「最小 ~ 最大」范围内按「步长」网格搜索；脚本里直接引用 P.p1 / P.p2 / P.p3</span></div>
+      <div class="lab-params">
+        <div class="lab-pr lab-prh"><span>启用</span><span>变量</span><span>含义</span><span>当前值</span><span>最小</span><span>最大</span><span>步长</span></div>
+        <div class="lab-pr"><input type="checkbox" id="labP1on" checked><span class="mono">P.p1</span><input id="labP1n" value="快线周期"><input type="number" id="labP1v" value="5"><input type="number" id="labP1min" value="3" min="1"><input type="number" id="labP1max" value="30" min="1"><input type="number" id="labP1st" value="1" min="0.5" step="0.5"></div>
+        <div class="lab-pr"><input type="checkbox" id="labP2on" checked><span class="mono">P.p2</span><input id="labP2n" value="慢线周期"><input type="number" id="labP2v" value="20"><input type="number" id="labP2min" value="10" min="1"><input type="number" id="labP2max" value="120" min="1"><input type="number" id="labP2st" value="5" min="0.5" step="0.5"></div>
+        <div class="lab-pr"><input type="checkbox" id="labP3on"><span class="mono">P.p3</span><input id="labP3n" value="备用"><input type="number" id="labP3v" value="0"><input type="number" id="labP3min" value="1" min="0"><input type="number" id="labP3max" value="10" min="0"><input type="number" id="labP3st" value="1" min="0.5" step="0.5"></div>
+      </div>
+    </div>
+
+    <!-- ③ 参数优化 -->
+    <div class="panel" style="margin-top:14px">
+      <div class="lab-ph">🧪 参数网格寻优（在基准标的的日K上跑全部参数组合，撮合口径与回测页一致）</div>
+      <div class="lab-cfg">
+        <div class="f"><span>基准标的</span><input id="labBench" value="601899" maxlength="6">
+          <button type="button" class="mini" id="labBenchLoad">载入日K</button><span class="lab-benchnm" id="labBenchNm"></span></div>
+        <div class="f"><span>优化目标</span>
+          <select id="labGoal">
+            <option value="sharpe">夏普比率</option>
+            <option value="ret">策略收益%</option>
+            <option value="calmar">收益 / 回撤</option>
+          </select></div>
+        <button type="button" class="btn-act" id="labOpt" style="padding:7px 16px">▶ 开始寻优</button>
+      </div>
+      <div class="lab-sub" id="labOptStat">先「载入日K」再运行寻优。</div>
+      <div class="bt-tblwrap" style="max-height:300px">
+        <table class="bt-tbl">
+          <thead><tr><th>#</th><th>参数组合</th><th>收益%</th><th>年化%</th><th>夏普</th><th>回撤%</th><th>笔数</th><th>胜率%</th><th>买入持有%</th><th></th></tr></thead>
+          <tbody id="labOptRows"><tr><td colspan="10" style="text-align:center;color:var(--dim2)">尚未运行</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ④ 全市场选股 -->
+    <div class="panel" style="margin-top:14px">
+      <div class="lab-ph">🔍 全市场信号选股（先用实时行情快筛，再逐只拉日K确认你的 buy 信号）</div>
+      <div class="lab-cfg">
+        <div class="f"><span>成交额≥</span><input type="number" id="labAmt" value="2" step="0.5" min="0"><span>亿元</span></div>
+        <div class="f"><span>价格</span><input type="number" id="labPmin" value="2" min="0"> ~ <input type="number" id="labPmax" value="500" min="0"><span>元</span></div>
+        <div class="f"><span>涨跌幅</span><input type="number" id="labCmin" value="-8"> ~ <input type="number" id="labCmax" value="8"><span>%</span></div>
+        <div class="f"><span>信号确认</span><input type="number" id="labTopN" value="40" min="5" max="150"><span>只（按成交额）</span></div>
+        <div class="f"><label><input type="checkbox" id="labNoST" checked> 剔除ST/退市</label></div>
+        <div class="f"><label><input type="checkbox" id="labNoBJ"> 含北交所</label></div>
+        <button type="button" class="btn-act" id="labScan" style="padding:7px 16px">▶ 开始扫描</button>
+      </div>
+      <div class="lab-prog"><div id="labProgBar"></div></div>
+      <div class="lab-sub" id="labScanStat">全市场约 5500 只：先批量行情快筛，再对成交额最大的 N 只拉日K确认信号，全程约 20~60 秒。</div>
+      <div class="bt-tblwrap" style="max-height:340px">
+        <table class="bt-tbl">
+          <thead><tr><th>#</th><th>代码</th><th>名称</th><th>现价</th><th>涨跌%</th><th>成交额(亿)</th><th>换手%</th><th>信号K线日</th><th>操作</th></tr></thead>
+          <tbody id="labPickRows"><tr><td colspan="9" style="text-align:center;color:var(--dim2)">尚未扫描</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ⑤ 每日记录 -->
+    <div class="panel" style="margin-top:14px">
+      <div class="lab-ph">📅 每日优化记录（寻优 → 选股 → 写入本机记录，一天一条）
+        <button type="button" class="btn-act" id="labDaily" style="padding:6px 14px;margin-left:auto">▶ 一键跑今日流程</button>
+      </div>
+      <div class="bt-tblwrap" style="max-height:260px">
+        <table class="bt-tbl">
+          <thead><tr><th>日期</th><th>基准</th><th>最优参数</th><th>收益%</th><th>夏普</th><th>回撤%</th><th>信号股数</th><th>信号股（前10）</th></tr></thead>
+          <tbody id="labLogRows"><tr><td colspan="8" style="text-align:center;color:var(--dim2)">暂无记录</td></tr></tbody>
+        </table>
+      </div>
+      <div class="lab-hint">无人值守：每天自动跑一遍并留档——用「每日策略优化.bat」双击打开（或加进 Windows 计划任务），页面会以 <span class="mono">?page=lab&amp;auto=1</span> 模式自动完成寻优 + 扫描 + 记录。</div>
+    </div>
+
+    <pre id="labExport" style="display:none"></pre>
+    <div class="bt-note">
+      说明：① 选股信号 = 你的 buy(i) 在最近一根日K上成立（盘中运行时最近一根为今日未收盘K线，仅供参考）；
+      ② 寻优在同一段历史上择优，<b>过拟合风险高</b>，样本外表现通常劣化，参数漂移突然变大时应警惕；
+      ③ 以上均为历史数据统计推断，<b style="color:var(--dim)">不构成任何投资建议</b>。
+    </div>
+  </section>
 
   <footer>
     <div class="src-grid">
@@ -991,29 +1130,49 @@ async function txVar(url, name, charset){
   return v;
 }
 
-/* 腾讯 K 线（UTF-8，_var 赋值）。返回与东财同构的 bars */
+/* 腾讯 K 线（UTF-8，_var 赋值）。返回与东财同构的 bars
+   web.ifzq 会周期性命中腾讯 WAF（返回 501 跳转页 HTML），所以按顺序换域名重试，
+   成功过的域名记在 KL_BASE 里做快路径，失败自动降级到下一个 */
+const KL_BASES = [
+  'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get',
+  'https://ifzq.gtimg.cn/appstock/app/fqkline/get',
+  'https://proxy.finance.qq.com/ifzqgtimg/appstock/app/newfqkline/get',
+  'https://web.ifzq.gtimg.cn/appstock/app/newfqkline/get'
+];
+let KL_BASE = 0;
+
 async function txKline(secid, klt, lmt){
   const code = txOf(secid);
   const per = klt === 102 ? 'week' : (klt === 103 ? 'month' : 'day');
-  const url = 'https://' + TX_KLINE + '/appstock/app/fqkline/get?param='
-    + code + ',' + per + ',,,' + lmt + ',qfq';
-  let r = null;
-  try {
-    /* 不带 _var 时返回纯 JSON，可直接解析 */
-    r = JSON.parse(await txFetchText(url, 'utf-8'));
-  } catch(e){
-    r = await txVar(url, '__txk' + (++cbSeq));
+  const qs = '?param=' + code + ',' + per + ',,,' + lmt + ',qfq';
+  let lastErr = null;
+  const order = [KL_BASE].concat(KL_BASES.map(function(_, i){ return i; }).filter(function(i){ return i !== KL_BASE; }));
+  for (let oi = 0; oi < order.length; oi++){
+    const bi = order[oi];
+    const url = KL_BASES[bi] + qs;
+    let r = null;
+    try {
+      const txt = await txFetchText(url, 'utf-8');
+      if (!txt || txt.charCodeAt(0) === 60) throw new Error('waf html');   /* 以 < 开头 = WAF 拦截页 */
+      r = JSON.parse(txt);
+    } catch(e){
+      lastErr = e;
+      /* JSONP/变量赋值兜底（部分环境 CSP 禁止 fetch 时也能出数据） */
+      try { r = await txVar(url, '__txk' + (++cbSeq)); }
+      catch(e2){ lastErr = e2; continue; }
+    }
+    const node = r && r.data && r.data[code];
+    const arr = node && (node['qfq' + per] || node[per]);
+    if (!arr || !arr.length){ lastErr = new Error('tx kline empty'); continue; }
+    KL_BASE = bi;                                  /* 记住可用域名 */
+    /* 腾讯格式：[日期, 开, 收, 高, 低, 量(手)]，部分源后面还跟换手率/成交额，忽略 */
+    const bars = arr.map(function(a){
+      return { d: a[0], o: +a[1], c: +a[2], h: +a[3], l: +a[4], v: +a[5] };
+    }).filter(function(b){ return isFinite(b.c) && b.c > 0; });
+    const nm = (node.qt && typeof node.qt[1] === 'string' && node.qt[1].length < 12) ? node.qt[1] : null;
+    return { bars: bars, name: nm, decimals: 2 };
   }
-  const node = r && r.data && r.data[code];
-  if (!node) throw new Error('tx kline empty');
-  const arr = node['qfq' + per] || node[per] || [];
-  if (!arr.length) throw new Error('tx kline no bars');
-  /* 腾讯格式：[日期, 开, 收, 高, 低, 量(手)] */
-  const bars = arr.map(function(a){
-    return { d: a[0], o: +a[1], c: +a[2], h: +a[3], l: +a[4], v: +a[5] };
-  }).filter(function(b){ return isFinite(b.c) && b.c > 0; });
-  const nm = (node.qt && typeof node.qt[1] === 'string' && node.qt[1].length < 12) ? node.qt[1] : null;
-  return { bars: bars, name: nm, decimals: 2 };
+  throw new Error('tx kline 全部源失败：' + (lastErr && lastErr.message ? lastErr.message : 'network'));
 }
 
 /* 腾讯 smartbox 搜索（GBK）：返回 [{secid,Code,Name,SecurityTypeName}] */
@@ -2685,7 +2844,7 @@ async function refreshSectors(){
    预览面板等嵌入环境可能限制外部脚本/请求；一旦全源不通，明确告知原因，
    而不是让用户以为页面坏了。
    ========================================================================== */
-const BUILD_TAG = 'BUILD 11-16 23:50';
+const BUILD_TAG = 'BUILD 11-17 21:00';
 let envChecked = false, envRunning = false;
 
 function selfPath(){
@@ -2907,18 +3066,22 @@ function nwBind(){
    ========================================================================= */
 const BT = { secid:null, code:'', name:'', klt:101, len:250, bars:[], loaded:false, _autoTried:false };
 
+const LAB_PAGES = { main:'pageMain', bt:'pageBt', lab:'pageLab' };
+
 function btPage(pg){
-  const isBt = pg === 'bt';
-  $('pageMain').style.display = isBt ? 'none' : '';
-  $('pageBt').style.display   = isBt ? '' : 'none';
+  const id = LAB_PAGES[pg] || 'pageMain';
+  Object.keys(LAB_PAGES).forEach(function(k){
+    $(LAB_PAGES[k]).style.display = (LAB_PAGES[k] === id) ? '' : 'none';
+  });
   document.querySelectorAll('#pageNav button').forEach(function(b){
-    b.classList.toggle('on', b.getAttribute('data-page') === pg);
+    b.classList.toggle('on', b.getAttribute('data-page') === (LAB_PAGES[pg] ? pg : 'main'));
   });
   window.scrollTo(0, 0);
-  if (isBt && !BT.loaded && !BT._autoTried){
+  if (id === 'pageBt' && !BT.loaded && !BT._autoTried){
     BT._autoTried = true;
     btUseCur();
   }
+  if (id === 'pageLab') labEnsure();
 }
 
 function btBind(){
@@ -3253,7 +3416,7 @@ function btCodeInit(){
 }
 
 /* 编译用户脚本：返回 { buy, sell } 或 { error } */
-function btCustomCompile(src, bars, closes){
+function btCustomCompile(src, bars, closes, pv){
   const O = bars.map(function(b){ return b.o; }),
         H = bars.map(function(b){ return b.h; }),
         L = bars.map(function(b){ return b.l; }),
@@ -3332,12 +3495,29 @@ function btCustomCompile(src, bars, closes){
     if (i < 0 || i >= a.k.length) return { k: NaN, d: NaN, j: NaN };
     return { k: a.k[i], d: a.d[i], j: 3 * a.k[i] - 2 * a.d[i] };
   }
+  /* RSI(n)：Wilder 平滑，超卖<30 超买>70；从第 n 根起有值 */
+  const rsiCache = {};
+  function RSI(i, p){
+    const q = Math.max(2, (p | 0) || 14);
+    if (!rsiCache[q]){
+      const len = closes.length, out = new Array(len).fill(NaN);
+      let ag = 0, al = 0;
+      for (let k = 1; k < len; k++){
+        const ch = closes[k] - closes[k - 1], g = ch > 0 ? ch : 0, l = ch < 0 ? -ch : 0;
+        if (k <= q){ ag += g; al += l; if (k === q){ ag /= q; al /= q; out[k] = al ? 100 - 100 / (1 + ag / al) : 100; } }
+        else { ag = (ag * (q - 1) + g) / q; al = (al * (q - 1) + l) / q; out[k] = al ? 100 - 100 / (1 + ag / al) : 100; }
+      }
+      rsiCache[q] = out;
+    }
+    const a = rsiCache[q];
+    return (i >= 0 && i < a.length) ? a[i] : NaN;
+  }
   let out;
   try {
-    out = new Function('C', 'O', 'H', 'L', 'V', 'D', 'EMA', 'ATR', 'HH', 'LL', 'MACD', 'KDJ',
+    out = new Function('C', 'O', 'H', 'L', 'V', 'D', 'EMA', 'ATR', 'HH', 'LL', 'MACD', 'KDJ', 'RSI', 'P',
       '"use strict";\nvar window, document, globalThis;\n' + src +
       '\n;return [ (typeof buy === "function" ? buy : null), (typeof sell === "function" ? sell : null) ];'
-    )(closes, O, H, L, V, D, EMA, ATR, HH, LL, MACD, KDJ);
+    )(closes, O, H, L, V, D, EMA, ATR, HH, LL, MACD, KDJ, RSI, pv || {});
   } catch(e){
     return { error: '脚本无法执行：' + (e && e.message ? e.message : String(e)) };
   }
@@ -3351,6 +3531,41 @@ function btCustomErr(bar, i, e){
   btCodeStat('✗ ' + msg, true);
   $('btInfo').innerHTML = '<span style="color:var(--amber)">脚本在 ' + bar.d + '（第 ' + (i + 1)
     + ' 根 K 线）抛错：' + msg + '，已终止</span>';
+}
+
+/* 回测统计：回测页与策略实验室共用同一口径 */
+function btStats(P, trades, equity, bars, warm, n, cash){
+  const finalEq = cash;
+  const retPct = (finalEq / P.cash - 1) * 100;
+  const days = (new Date(bars[n-1].d) - new Date(bars[warm].d)) / 864e5;
+  const years = Math.max(days / 365, 0.02);
+  const ann = (Math.pow(finalEq / P.cash, 1 / years) - 1) * 100;
+  const wins = trades.filter(function(t){ return t.pnl > 0; });
+  const losses = trades.filter(function(t){ return t.pnl <= 0; });
+  const winRate = trades.length ? wins.length / trades.length * 100 : 0;
+  const avgW = wins.length ? wins.reduce(function(s,t){ return s + t.pnl; }, 0) / wins.length : 0;
+  const avgL = losses.length ? losses.reduce(function(s,t){ return s + t.pnl; }, 0) / losses.length : 0;
+  const plRatio = avgL ? avgW / Math.abs(avgL) : (wins.length ? 99 : 0);
+  const sumW = wins.reduce(function(s,t){ return s + t.pnl; }, 0);
+  const sumL = Math.abs(losses.reduce(function(s,t){ return s + t.pnl; }, 0));
+  const pf = sumL ? sumW / sumL : (wins.length ? 99 : 0);
+  let peak = -1e18, mdd = 0;
+  for (let i = warm; i < n; i++){
+    if (equity[i] > peak) peak = equity[i];
+    const dd = (peak - equity[i]) / peak * 100;
+    if (dd > mdd) mdd = dd;
+  }
+  let s1 = 0, cnt = 0;
+  for (let i = warm + 1; i < n; i++){ s1 += equity[i] / equity[i-1] - 1; cnt++; }
+  const meanR = cnt ? s1 / cnt : 0;
+  let s2 = 0;
+  for (let i = warm + 1; i < n; i++){ const r = equity[i] / equity[i-1] - 1; s2 += (r - meanR) * (r - meanR); }
+  const sd = cnt > 1 ? Math.sqrt(s2 / (cnt - 1)) : 0;
+  const sharpe = sd ? meanR / sd * Math.sqrt(250) : 0;
+  const bh = (bars[n-1].c / bars[warm].o - 1) * 100;
+  const avgHold = trades.length ? trades.reduce(function(a,t){ return a + (t.i1 - t.i0); }, 0) / trades.length : 0;
+  return { retPct: retPct, ann: ann, winRate: winRate, plRatio: plRatio, pf: pf, mdd: mdd,
+           sharpe: sharpe, bh: bh, finalEq: finalEq, avgHold: avgHold, days: days };
 }
 
 /* ---- 指标 ---- */
@@ -3518,39 +3733,8 @@ function btRun(){
   equity[n-1] = cash;
 
   /* ---- 统计 ---- */
-  const finalEq = cash;
-  const retPct = (finalEq / P.cash - 1) * 100;
-  const days = (new Date(bars[n-1].d) - new Date(bars[warm].d)) / 864e5;
-  const years = Math.max(days / 365, 0.02);
-  const ann = (Math.pow(finalEq / P.cash, 1 / years) - 1) * 100;
-  const wins = trades.filter(function(t){ return t.pnl > 0; });
-  const losses = trades.filter(function(t){ return t.pnl <= 0; });
-  const winRate = trades.length ? wins.length / trades.length * 100 : 0;
-  const avgW = wins.length ? wins.reduce(function(s,t){ return s + t.pnl; }, 0) / wins.length : 0;
-  const avgL = losses.length ? losses.reduce(function(s,t){ return s + t.pnl; }, 0) / losses.length : 0;
-  const plRatio = avgL ? avgW / Math.abs(avgL) : (wins.length ? 99 : 0);
-  const sumW = wins.reduce(function(s,t){ return s + t.pnl; }, 0);
-  const sumL = Math.abs(losses.reduce(function(s,t){ return s + t.pnl; }, 0));
-  const pf = sumL ? sumW / sumL : (wins.length ? 99 : 0);
-  let peak = -1e18, mdd = 0, mddEnd = warm;
-  for (let i = warm; i < n; i++){
-    if (equity[i] > peak) peak = equity[i];
-    const dd = (peak - equity[i]) / peak * 100;
-    if (dd > mdd){ mdd = dd; mddEnd = i; }
-  }
-  let s1 = 0, cnt = 0;
-  for (let i = warm + 1; i < n; i++){ s1 += equity[i] / equity[i-1] - 1; cnt++; }
-  const meanR = cnt ? s1 / cnt : 0;
-  let s2 = 0;
-  for (let i = warm + 1; i < n; i++){ const r = equity[i] / equity[i-1] - 1; s2 += (r - meanR) * (r - meanR); }
-  const sd = cnt > 1 ? Math.sqrt(s2 / (cnt - 1)) : 0;
-  const sharpe = sd ? meanR / sd * Math.sqrt(250) : 0;
-  const bh = (bars[n-1].c / bars[warm].o - 1) * 100;
-  const avgHold = trades.length ? trades.reduce(function(a,t){ return a + (t.i1 - t.i0); }, 0) / trades.length : 0;
-
-  const R = { P:P, bars:bars, equity:equity, trades:trades, warm:warm, n:n,
-    retPct:retPct, ann:ann, winRate:winRate, plRatio:plRatio, pf:pf, mdd:mdd,
-    sharpe:sharpe, bh:bh, finalEq:finalEq, avgHold:avgHold, days:days };
+  const st = btStats(P, trades, equity, bars, warm, n, cash);
+  const R = Object.assign({ P:P, bars:bars, equity:equity, trades:trades, warm:warm, n:n }, st);
   BT.last = R;
   btRender(R);
 }
@@ -3881,6 +4065,550 @@ function btChartHover(){
   }
 }
 
+/* ==========================================================================
+   策略实验室：写策略 → 网格寻优 → 全市场信号选股 → 每日记录
+   ========================================================================== */
+const LAB = {
+  benchSecid: null, benchCode: '', benchName: '', bars: null,
+  optBest: null, picks: [], busy: false, seq: 0
+};
+
+/* 与回测页同口径的撮合引擎（T+1 开盘成交 / 费用 / 整百股 / 止损止盈），信号来自自定义脚本 */
+function labEngine(bars, P, ub, us){
+  const n = bars.length;
+  const closes = bars.map(function(b){ return b.c; });
+  const atr = atrArr(bars, P.atrP);
+  const warm = Math.min(n - 5, Math.max(30, P.slow + 2, P.atrP + 2, 22));
+  const stamp = 0.0005, minFee = 5;
+  let cash = P.cash, pos = null, pendBuy = false, pendSell = false;
+  const trades = [], equity = new Array(n).fill(P.cash);
+
+  function closePos(i, px, reason){
+    const p2 = px * (1 - P.slip), amt = pos.sh * p2;
+    const fee = Math.max(amt * P.fee, minFee) + amt * stamp;
+    cash += amt - fee;
+    trades.push({ i0: pos.i, i1: i, d0: pos.d, d1: bars[i].d, e: pos.entry, x: p2,
+      pnl: (amt - fee) - pos.cost, cost: pos.cost, reason: reason });
+    pos = null;
+  }
+  for (let i = 0; i < n; i++){
+    const b = bars[i];
+    if (pos && pendSell){ closePos(i, b.o, '信号离场'); pendSell = false; }
+    if (!pos && pendBuy){
+      const px = b.o * (1 + P.slip);
+      const lots = Math.floor(cash / (px * 100));
+      if (lots >= 1){
+        const sh = lots * 100, amt = sh * px, fee = Math.max(amt * P.fee, minFee);
+        const a = isFinite(atr[i - 1]) ? atr[i - 1] : NaN;
+        const stop = (P.stopMult > 0 && isFinite(a)) ? px - P.stopMult * a : null;
+        const r = stop != null ? px - stop : 0;
+        const tp = (P.tpR > 0 && r > 0) ? px + P.tpR * r : null;
+        pos = { sh: sh, entry: px, i: i, d: b.d, cost: amt + fee, stop: stop, tp: tp };
+        cash -= pos.cost;
+      }
+      pendBuy = false;
+    }
+    if (i < warm){ equity[i] = pos ? cash + pos.sh * b.c : cash; continue; }
+    if (pos){
+      if (pos.stop != null && (b.o <= pos.stop || b.l <= pos.stop)) closePos(i, Math.min(b.o, pos.stop), '止损');
+      else if (pos.tp != null && (b.o >= pos.tp || b.h >= pos.tp)) closePos(i, Math.max(b.o, pos.tp), '止盈');
+      else if (P.trail && isFinite(atr[i]) && pos.stop != null) pos.stop = Math.max(pos.stop, b.c - P.stopMult * atr[i]);
+    }
+    let buy = false, sell = false;
+    if (pos){ if (us) sell = !!us(i, pos); }
+    else if (ub){ buy = !!ub(i); }
+    if (pos && sell) pendSell = true;
+    if (!pos && buy) pendBuy = true;
+    equity[i] = pos ? cash + pos.sh * b.c : cash;
+  }
+  if (pos) closePos(n - 1, bars[n-1].c, '期末平仓');
+  equity[n-1] = cash;
+  return Object.assign(btStats(P, trades, equity, bars, warm, n, cash),
+                        { trades: trades, warm: warm, n: n });
+}
+
+/* 实验室撮合参数：与回测页默认值一致 */
+function labP(pv){
+  return { cash: 500000, fee: 0.00025, slip: 0.001, atrP: 14,
+           stopMult: 2, tpR: 2, trail: false, slow: 20, p: pv || {} };
+}
+
+/* ---------------- 模板库 ---------------- */
+const LAB_DEFAULT =
+  '/* 双均线金叉（P.p1 快线 / P.p2 慢线，可被优化器搜索） */\n' +
+  'function buy(i){\n' +
+  '  return EMA(i, P.p1) > EMA(i, P.p2) && EMA(i - 1, P.p1) <= EMA(i - 1, P.p2);\n' +
+  '}\n' +
+  'function sell(i, pos){\n' +
+  '  return EMA(i, P.p1) < EMA(i, P.p2);\n' +
+  '}';
+const LAB_TEMPLATES = {
+  labT1: { code: LAB_DEFAULT,
+           p: [[true,'快线周期',5,3,30,1],[true,'慢线周期',20,10,120,5],[false,'备用',0,1,10,1]] },
+  labT2: { code:
+    '/* N 日区间突破（P.p1 区间长度 / P.p2 回落止损根数） */\n' +
+    'function buy(i){\n' +
+    '  return C[i] > HH(i, P.p1);\n' +
+    '}\n' +
+    'function sell(i, pos){\n' +
+    '  return C[i] < LL(i, P.p2) || C[i] < EMA(i, 20);\n' +
+    '}',
+           p: [[true,'区间N',20,10,60,5],[true,'回落M',10,5,30,1],[false,'备用',0,1,10,1]] },
+  labT3: { code:
+    '/* MACD + KDJ 双金叉共振（P.p1 共振窗口 / P.p2 KDJ 周期） */\n' +
+    'function mGold(i){\n' +
+    '  var a = MACD(i), b = MACD(i - 1);\n' +
+    '  return a.dif > a.dea && b.dif <= b.dea;\n' +
+    '}\n' +
+    'function jGold(i){\n' +
+    '  var a = KDJ(i, P.p2), b = KDJ(i - 1, P.p2);\n' +
+    '  return a.k > a.d && b.k <= b.d;\n' +
+    '}\n' +
+    'function recent(i, fn){\n' +
+    '  for (var k = 0; k < P.p1; k++){ if (fn(i - k)) return true; }\n' +
+    '  return false;\n' +
+    '}\n' +
+    'function buy(i){\n' +
+    '  return recent(i, mGold) && recent(i, jGold);\n' +
+    '}\n' +
+    'function sell(i, pos){\n' +
+    '  var a = MACD(i), b = MACD(i - 1);\n' +
+    '  var c = KDJ(i, P.p2), e = KDJ(i - 1, P.p2);\n' +
+    '  return (a.dif < a.dea && b.dif >= b.dea) || (c.k < c.d && e.k >= e.d);\n' +
+    '}',
+           p: [[true,'共振窗口',3,1,5,1],[true,'KDJ周期',9,5,14,1],[false,'备用',0,1,10,1]] },
+  labT4: { code:
+    '/* RSI 超卖 + 趋势之上低吸（P.p1 RSI 周期 / P.p2 RSI 阈值） */\n' +
+    'function buy(i){\n' +
+    '  return RSI(i, P.p1) < P.p2 && C[i] > EMA(i, 60);\n' +
+    '}\n' +
+    'function sell(i, pos){\n' +
+    '  return RSI(i, P.p1) > 70 || C[i] < EMA(i, 60);\n' +
+    '}',
+           p: [[true,'RSI周期',14,5,30,1],[true,'RSI阈值',30,20,40,2],[false,'备用',0,1,10,1]] }
+};
+
+function labSaveCode(){
+  try { localStorage.setItem('lab_code_v1', $('labCode').value); } catch(e){}
+}
+function labLoadCode(){
+  let v = '';
+  try { v = localStorage.getItem('lab_code_v1') || ''; } catch(e){}
+  $('labCode').value = v || LAB_DEFAULT;
+  return v;
+}
+function labApplyTemplate(id){
+  const t = LAB_TEMPLATES[id];
+  if (!t) return;
+  $('labCode').value = t.code;
+  const ids = ['1', '2', '3'];
+  t.p.forEach(function(p, k){
+    const j = ids[k];
+    $('labP' + j + 'on').checked = p[0];
+    $('labP' + j + 'n').value = p[1];
+    $('labP' + j + 'v').value = p[2];
+    $('labP' + j + 'min').value = p[3];
+    $('labP' + j + 'max').value = p[4];
+    $('labP' + j + 'st').value = p[5];
+  });
+  labSaveCode();
+  labCodeStat('✓ 已载入模板');
+}
+function labCodeStat(msg, bad){
+  const el = $('labCodeStat');
+  el.textContent = msg || '';
+  el.style.color = bad ? 'var(--amber)' : 'var(--dim2)';
+}
+function labReadParams(){
+  const out = {};
+  ['1', '2', '3'].forEach(function(j){
+    out['p' + j] = {
+      on: $('labP' + j + 'on').checked,
+      name: $('labP' + j + 'n').value || ('p' + j),
+      v: +$('labP' + j + 'v').value || 0,
+      min: +$('labP' + j + 'min').value || 0,
+      max: +$('labP' + j + 'max').value || 0,
+      st: Math.abs(+$('labP' + j + 'st').value) || 1
+    };
+  });
+  return out;
+}
+function labCombos(ps){
+  let arr = [{}];
+  ['p1', 'p2', 'p3'].forEach(function(k){
+    const q = ps[k];
+    const next = [];
+    if (!q.on || q.max < q.min || q.st <= 0){
+      arr.forEach(function(o){ next.push(Object.assign({}, o, (function(){ var t = {}; t[k] = q.v; return t; })())); });
+    } else {
+      const steps = Math.min(40, Math.floor((q.max - q.min) / q.st) + 1);
+      arr.forEach(function(o){
+        for (let s = 0; s < steps; s++){
+          const t = {};
+          t[k] = +(q.min + s * q.st).toFixed(4);
+          next.push(Object.assign({}, o, t));
+        }
+      });
+    }
+    arr = next;
+    if (arr.length > 800) arr = arr.slice(0, 800);
+  });
+  return arr;
+}
+
+/* 基准标的日K */
+async function labLoadBench(code){
+  code = String(code || $('labBench').value).trim();
+  if (!/^\d{6}$/.test(code)){
+    labCodeStat('基准标的需为 6 位代码', true);
+    return false;
+  }
+  const secid = (/^6/.test(code) ? '1.' : '0.') + code;
+  try {
+    const kl = await txKline(secid, 101, 320);
+    if (!kl.bars || kl.bars.length < 60) throw new Error('K线不足 60 根');
+    LAB.benchSecid = secid; LAB.benchCode = code;
+    LAB.benchName = (STK_IDX.filter(function(x){ return x.code === code; })[0] || {}).name || kl.name || code;
+    LAB.bars = kl.bars;
+    $('labBenchNm').textContent = LAB.benchName + ' · ' + kl.bars.length + ' 根日K · 就绪';
+    return true;
+  } catch(e){
+    $('labBenchNm').textContent = '';
+    labCodeStat('基准日K加载失败：' + e.message, true);
+    return false;
+  }
+}
+
+/* 网格寻优 */
+async function labOpt(){
+  if (LAB.busy) return;
+  if (!LAB.bars){ labCodeStat('请先「载入日K」', true); return; }
+  const src = $('labCode').value;
+  const bars = LAB.bars, closes = bars.map(function(b){ return b.c; });
+  const ps = labReadParams();
+  const combos = labCombos(ps);
+  if (!combos.length){ labCodeStat('无可搜参数组合', true); return; }
+  LAB.busy = true;
+  labSaveCode();
+  const goal = $('labGoal').value;
+  const rows = [];
+  const t0 = performance.now();
+  for (let ci = 0; ci < combos.length; ci++){
+    const pv = { p1: combos[ci].p1, p2: combos[ci].p2, p3: combos[ci].p3 };
+    const cc = btCustomCompile(src, bars, closes, pv);
+    if (cc.error){ labCodeStat('✗ ' + cc.error, true); LAB.busy = false; return; }
+    let r;
+    try { r = labEngine(bars, labP(pv), cc.buy, cc.sell); }
+    catch(e){ labCodeStat('✗ 脚本抛错：' + (e && e.message ? e.message : e), true); LAB.busy = false; return; }
+    const score = goal === 'sharpe' ? r.sharpe
+                : goal === 'ret' ? r.retPct
+                : (r.mdd > 1 ? r.retPct / r.mdd : r.retPct);
+    rows.push({ pv: pv, r: r, score: score });
+    if (ci % 50 === 0) $('labOptStat').textContent = '搜索中 ' + (ci + 1) + ' / ' + combos.length + ' …';
+  }
+  rows.sort(function(a, b){ return b.score - a.score; });
+  LAB.optBest = rows[0];
+  const ms = Math.round(performance.now() - t0);
+  $('labOptStat').textContent = '完成：' + combos.length + ' 组 / ' + ms + 'ms · 目标='
+    + { sharpe:'夏普', ret:'收益%', calmar:'收益/回撤' }[goal]
+    + ' · 最优 ' + JSON.stringify(rows[0] && rows[0].pv);
+  const tb = $('labOptRows');
+  tb.innerHTML = rows.slice(0, 12).map(function(x, i){
+    const pstr = ['p1','p2','p3'].filter(function(k){ return ps[k].on; })
+      .map(function(k){ return ps[k].name + '=' + x.pv[k]; }).join('  ') || '（无启用参数）';
+    return '<tr><td>' + (i + 1) + '</td><td style="text-align:left">' + pstr + '</td>'
+      + '<td class="' + (x.r.retPct >= 0 ? 'num-red' : 'num-grn') + '">' + x.r.retPct.toFixed(2) + '</td>'
+      + '<td>' + x.r.ann.toFixed(1) + '</td><td>' + x.r.sharpe.toFixed(2) + '</td>'
+      + '<td>' + x.r.mdd.toFixed(1) + '</td><td>' + x.r.trades.length + '</td>'
+      + '<td>' + x.r.winRate.toFixed(0) + '</td>'
+      + '<td class="' + (x.r.bh >= 0 ? 'num-red' : 'num-grn') + '">' + x.r.bh.toFixed(2) + '</td>'
+      + '<td><button type="button" class="rowact" data-lab="' + i + '">应用</button></td></tr>';
+  }).join('');
+  tb.querySelectorAll('[data-lab]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const x = rows[+btn.getAttribute('data-lab')];
+      $('labP1v').value = x.pv.p1; $('labP2v').value = x.pv.p2; $('labP3v').value = x.pv.p3;
+      $('labOptStat').textContent = '已应用参数 ' + JSON.stringify(x.pv) + ' 到「当前值」，可直接去选股。';
+    });
+  });
+  LAB.busy = false;
+}
+
+/* 并发池 */
+async function pool(items, n, fn, onStep){
+  let idx = 0, done = 0;
+  async function worker(){
+    while (idx < items.length){
+      const my = idx++;
+      try { await fn(items[my], my); } catch(e){}
+      done++;
+      if (onStep) onStep(done, items.length);
+    }
+  }
+  const ws = [];
+  for (let i = 0; i < Math.min(n, items.length); i++) ws.push(worker());
+  await Promise.all(ws);
+}
+
+/* 全市场信号选股 */
+async function labScan(){
+  if (LAB.busy) return;
+  LAB.busy = true;
+  const seq = ++LAB.seq;
+  const src = $('labCode').value;
+  const ps = labReadParams();
+  const pv = { p1: ps.p1.v, p2: ps.p2.v, p3: ps.p3.v };
+  const noST = $('labNoST').checked, noBJ = !$('labNoBJ').checked;
+  const amtMin = (+$('labAmt').value || 0) * 1e4;         /* 万元 */
+  const pmin = +$('labPmin').value || 0, pmax = +$('labPmax').value || 1e9;
+  const cmin = +$('labCmin').value, cmax = +$('labCmax').value;
+  const topN = Math.max(5, Math.min(150, +$('labTopN').value || 40));
+  labSaveCode();
+  $('labProgBar').style.width = '0%';
+
+  /* ① 全市场批量行情（每 60 只一批，并发 4） */
+  const uni = STK_IDX.filter(function(s){
+    if (noBJ && /^[48]/.test(s.code)) return false;
+    if (noST && /ST|退/i.test(s.name)) return false;
+    return true;
+  });
+  const batches = [];
+  for (let i = 0; i < uni.length; i += 60){
+    batches.push(uni.slice(i, i + 60));
+  }
+  const quotes = [];
+  let doneB = 0;
+  await pool(batches, 4, async function(chunk){
+    const codes = chunk.map(function(s){ return txOf((/^6/.test(s.code) ? '1.' : '0.') + s.code); });
+    const q = await txQuotes(codes);
+    chunk.forEach(function(s){
+      const tx = txOf((/^6/.test(s.code) ? '1.' : '0.') + s.code);
+      const f = q[tx];
+      if (!f || f.length < 40) return;
+      const price = parseFloat(f[3]), pct = parseFloat(f[32]), amt = parseFloat(f[37]), to = parseFloat(f[38]);
+      if (!isFinite(price) || price <= 0) return;
+      if (isFinite(amt) && amt < amtMin) return;
+      if (price < pmin || price > pmax) return;
+      if (isFinite(pct) && (pct < cmin || pct > cmax)) return;
+      quotes.push({ code: s.code, name: f[1] || s.name, price: price, pct: pct || 0,
+                    amt: amt, to: isFinite(to) ? to : NaN });
+    });
+    doneB++;
+    $('labProgBar').style.width = Math.round(doneB / batches.length * 60) + '%';
+    $('labScanStat').textContent = '行情快筛 ' + doneB + ' / ' + batches.length + ' 批 · 通过 ' + quotes.length + ' 只';
+  });
+  if (seq !== LAB.seq){ LAB.busy = false; return; }
+  quotes.sort(function(a, b){ return (b.amt || 0) - (a.amt || 0); });
+  const cand = quotes.slice(0, topN);
+  if (!cand.length){
+    $('labScanStat').textContent = '快筛后无候选：放宽成交额/价格/涨跌幅条件再试。';
+    $('labProgBar').style.width = '100%';
+    LAB.busy = false;
+    LAB.picks = [];
+    return;
+  }
+
+  /* ② 逐只拉日K确认信号（并发 4） */
+  const hits = [];
+  const t0 = performance.now();
+  await pool(cand, 4, async function(c){
+    const secid = (/^6/.test(c.code) ? '1.' : '0.') + c.code;
+    const kl = await txKline(secid, 101, 320);
+    if (!kl.bars || kl.bars.length < 30) return;
+    const bars = kl.bars, closes = bars.map(function(b){ return b.c; });
+    const cc = btCustomCompile(src, bars, closes, pv);
+    if (cc.error || !cc.buy) return;
+    const last = bars.length - 1;
+    let sig = null;
+    try {
+      if (cc.buy(last)) sig = bars[last].d;
+      else if (last > 1 && cc.buy(last - 1)) sig = bars[last - 1].d + '（前一日）';
+    } catch(e){ return; }
+    if (sig) hits.push({ code: c.code, name: c.name, price: c.price, pct: c.pct,
+                         amt: c.amt, to: c.to, sig: sig });
+  }, function(d, tot){
+    $('labProgBar').style.width = (60 + Math.round(d / tot * 40)) + '%';
+    $('labScanStat').textContent = '日K信号确认 ' + d + ' / ' + tot + ' · 命中 ' + hits.length;
+  });
+  if (seq !== LAB.seq){ LAB.busy = false; return; }
+  hits.sort(function(a, b){ return (b.amt || 0) - (a.amt || 0); });
+  LAB.picks = hits;
+  const secs = Math.round((performance.now() - t0 + 1) / 1000);
+  $('labProgBar').style.width = '100%';
+  $('labScanStat').textContent = '完成：快筛通过 ' + quotes.length + ' 只 → 确认 ' + cand.length
+    + ' 只 → 信号命中 ' + hits.length + ' 只（约 ' + secs + ' 秒）';
+  const tb = $('labPickRows');
+  if (!hits.length){
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--dim2)">今日无命中信号</td></tr>';
+  } else {
+    tb.innerHTML = hits.map(function(h, i){
+      return '<tr><td>' + (i + 1) + '</td><td>' + h.code + '</td><td style="text-align:left">' + h.name + '</td>'
+        + '<td>' + h.price.toFixed(2) + '</td>'
+        + '<td class="' + (h.pct >= 0 ? 'num-red' : 'num-grn') + '">' + (h.pct >= 0 ? '+' : '') + h.pct.toFixed(2) + '</td>'
+        + '<td>' + (h.amt / 1e4).toFixed(2) + '</td><td>' + (isFinite(h.to) ? h.to.toFixed(2) : '-') + '</td>'
+        + '<td>' + h.sig + '</td>'
+        + '<td><button type="button" class="rowact" data-bt="' + h.code + '" data-nm="' + h.name + '">回测</button>'
+        + '<button type="button" class="rowact" data-k="' + h.code + '" data-nm="' + h.name + '">看K线</button></td></tr>';
+    }).join('');
+    tb.querySelectorAll('[data-bt]').forEach(function(b){
+      b.addEventListener('click', function(){
+        const code = b.getAttribute('data-bt');
+        btPick((/^6/.test(code) ? '1.' : '0.') + code, code, b.getAttribute('data-nm'));
+        btPage('bt');
+      });
+    });
+    tb.querySelectorAll('[data-k]').forEach(function(b){
+      b.addEventListener('click', function(){
+        const code = b.getAttribute('data-k');
+        loadStock((/^6/.test(code) ? '1.' : '0.') + code, code, b.getAttribute('data-nm'), '');
+        btPage('main');
+      });
+    });
+  }
+  LAB.busy = false;
+}
+
+/* ---------------- 每日记录 ---------------- */
+function labLogRead(){
+  try { return JSON.parse(localStorage.getItem('lab_log_v1') || '[]'); } catch(e){ return []; }
+}
+function labLogWrite(v){
+  try { localStorage.setItem('lab_log_v1', JSON.stringify(v.slice(-60))); } catch(e){}
+}
+function labToday(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function labLogSave(){
+  const ps = labReadParams();
+  const log = labLogRead().filter(function(e){ return e.d !== labToday(); });
+  const b = LAB.optBest;
+  log.push({
+    d: labToday(), bench: LAB.benchCode + ' ' + LAB.benchName,
+    params: ['p1','p2','p3'].filter(function(k){ return ps[k].on; })
+      .map(function(k){ return ps[k].name + '=' + ps[k].v; }).join(' '),
+    ret: b ? +b.r.retPct.toFixed(2) : null,
+    sharpe: b ? +b.r.sharpe.toFixed(2) : null,
+    mdd: b ? +b.r.mdd.toFixed(1) : null,
+    picksN: LAB.picks.length,
+    picks: LAB.picks.slice(0, 10).map(function(h){ return h.code + ' ' + h.name; })
+  });
+  labLogWrite(log);
+  labLogRender();
+}
+function labLogRender(){
+  const log = labLogRead().slice().reverse();
+  const tb = $('labLogRows');
+  if (!log.length){
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--dim2)">暂无记录</td></tr>';
+    return;
+  }
+  tb.innerHTML = log.map(function(e){
+    return '<tr><td>' + e.d + '</td><td style="text-align:left">' + e.bench + '</td>'
+      + '<td style="text-align:left">' + (e.params || '-') + '</td>'
+      + '<td class="' + ((e.ret || 0) >= 0 ? 'num-red' : 'num-grn') + '">' + (e.ret != null ? (e.ret >= 0 ? '+' : '') + e.ret : '-') + '</td>'
+      + '<td>' + (e.sharpe != null ? e.sharpe : '-') + '</td>'
+      + '<td>' + (e.mdd != null ? e.mdd : '-') + '</td>'
+      + '<td>' + (e.picksN || 0) + '</td>'
+      + '<td style="text-align:left;color:var(--dim2)">' + (e.picks || []).join('、') + '</td></tr>';
+  }).join('');
+}
+
+/* 把寻优最优参数写回「当前值」，后续选股用最优参数 */
+function labApplyBest(){
+  const b = LAB.optBest;
+  if (!b) return null;
+  $('labP1v').value = b.pv.p1;
+  $('labP2v').value = b.pv.p2;
+  $('labP3v').value = b.pv.p3;
+  return b.pv;
+}
+
+/* 一键每日流程：寻优 → 应用最优参数 → 选股 → 记录 */
+async function labDaily(){
+  if (LAB.busy) return;
+  if (!LAB.bars && !(await labLoadBench())) return;
+  await labOpt();
+  if (!LAB.optBest) return;
+  labApplyBest();
+  await labScan();
+  labLogSave();
+  labCodeStat('✓ 今日流程完成（' + labToday() + '）');
+}
+
+/* 无人值守：?page=lab&auto=1（可选 code= 脚本 / bench= 基准 / cfg=1 读 lab_config.json） */
+async function labAuto(){
+  const sp = new URLSearchParams(location.search);
+  try {
+    if (sp.get('cfg') === '1'){
+      const r = await fetch('lab_config.json', { cache: 'no-store' });
+      const cfg = await r.json();
+      if (cfg.strategy) $('labCode').value = cfg.strategy;
+      if (cfg.bench) $('labBench').value = cfg.bench;
+      if (cfg.goal) $('labGoal').value = cfg.goal;
+      if (cfg.params){
+        ['1','2','3'].forEach(function(j, k){
+          const p = cfg.params[k];
+          if (!p) return;
+          $('labP' + j + 'on').checked = p.on !== false;
+          if (p.name) $('labP' + j + 'n').value = p.name;
+          if (p.v != null) $('labP' + j + 'v').value = p.v;
+          if (p.min != null) $('labP' + j + 'min').value = p.min;
+          if (p.max != null) $('labP' + j + 'max').value = p.max;
+          if (p.st != null) $('labP' + j + 'st').value = p.st;
+        });
+      }
+    }
+    if (sp.get('code')) $('labCode').value = decodeURIComponent(sp.get('code'));
+    if (sp.get('bench')) $('labBench').value = sp.get('bench');
+    if (sp.get('topn')) $('labTopN').value = sp.get('topn');
+  } catch(e){}
+  labCodeStat('自动模式运行中…');
+  const okB = await labLoadBench();
+  if (!okB){ labExportRender({ ok: 0, error: 'bench load failed' }); return; }
+  await labOpt();
+  if (!LAB.optBest){ labExportRender({ ok: 0, error: 'optimize failed' }); return; }
+  labApplyBest();
+  await labScan();
+  labLogSave();
+  labCodeStat('✓ 自动流程完成（' + labToday() + '）');
+  labExportRender({ ok: 1, date: labToday(), bench: LAB.benchCode + ' ' + LAB.benchName,
+    params: LAB.optBest.pv, goal: $('labGoal').value,
+    metrics: { retPct: +LAB.optBest.r.retPct.toFixed(2), ann: +LAB.optBest.r.ann.toFixed(1),
+               sharpe: +LAB.optBest.r.sharpe.toFixed(2), mdd: +LAB.optBest.r.mdd.toFixed(1),
+               trades: LAB.optBest.r.trades.length, winRate: +LAB.optBest.r.winRate.toFixed(1),
+               bh: +LAB.optBest.r.bh.toFixed(2) },
+    picks: LAB.picks.map(function(h){ return { code: h.code, name: h.name, price: h.price, pct: h.pct, sig: h.sig }; }) });
+}
+function labExportRender(obj){
+  const el = $('labExport');
+  el.textContent = '@@LAB@@' + JSON.stringify(obj);
+}
+
+/* 实验室初始化（首次进入页面时执行一次） */
+let labBound = false;
+function labEnsure(){
+  if (labBound) return;
+  labBound = true;
+  labLoadCode();
+  labLogRender();
+  $('labT1').addEventListener('click', function(){ labApplyTemplate('labT1'); });
+  $('labT2').addEventListener('click', function(){ labApplyTemplate('labT2'); });
+  $('labT3').addEventListener('click', function(){ labApplyTemplate('labT3'); });
+  $('labT4').addEventListener('click', function(){ labApplyTemplate('labT4'); });
+  $('labTreset').addEventListener('click', function(){ labApplyTemplate('labT1'); labCodeStat('已恢复默认'); });
+  $('labBenchLoad').addEventListener('click', function(){ labLoadBench(); });
+  $('labOpt').addEventListener('click', labOpt);
+  $('labScan').addEventListener('click', labScan);
+  $('labDaily').addEventListener('click', labDaily);
+  const ta = $('labCode');
+  ta.addEventListener('blur', labSaveCode);
+  ta.addEventListener('keydown', function(e){
+    if (e.key === 'Tab'){ e.preventDefault(); ta.setRangeText('  ', ta.selectionStart, ta.selectionEnd, 'end'); }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); labOpt(); }
+  });
+}
+
 async function boot(){
   tickClock();
   setInterval(tickClock, 1000);
@@ -3900,6 +4628,16 @@ async function boot(){
   if (_btq) BT._autoTried = true;             /* 有指定标的则不自动带入当前个股 */
   if (_btDeep) btPage('bt');
   if (_btq) btSetTarget(_btq.trim());
+
+  /* 策略实验室深链：?page=lab&auto=1 无人值守全流程 */
+  const _labDeep = /[?&]page=lab/.test(location.search) || location.hash === '#lab';
+  if (_labDeep){
+    const lsp = new URLSearchParams(location.search);
+    if (lsp.get('bench')) $('labBench').value = lsp.get('bench');
+    if (lsp.get('topn')) $('labTopN').value = lsp.get('topn');
+    btPage('lab');
+    if (lsp.get('auto') === '1') setTimeout(labAuto, 500);
+  }
 
   const rs = await Promise.allSettled([fetchIndices(), fetchStyle()]);
   if (rs[0].status === 'rejected') renderFallbackIndices();
