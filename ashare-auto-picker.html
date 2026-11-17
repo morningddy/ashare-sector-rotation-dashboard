@@ -122,6 +122,8 @@ td .sc{font-weight:650;color:var(--cyan)}
 .err-banner{display:none;margin-top:22px;border:1px solid rgba(255,77,90,.35);background:rgba(255,77,90,.07);border-radius:11px;padding:14px 18px;font-size:12.5px;color:#ffb9c0;line-height:1.9}
 .err-banner.on{display:block}
 .err-banner b{color:var(--red2)}
+.err-banner .livdot{width:7px;height:7px;border-radius:50%;background:var(--amber);animation:livpulse 1.6s infinite;flex:none;display:inline-block}
+@keyframes livpulse{0%{box-shadow:0 0 0 0 rgba(245,185,59,.45)}70%{box-shadow:0 0 0 7px rgba(245,185,59,0)}100%{box-shadow:0 0 0 0 rgba(245,185,59,0)}}
 
 footer{margin-top:44px;border-top:1px solid var(--line);padding:16px 0 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--dim2);font-family:var(--mono)}
 footer .sep{opacity:.35}
@@ -479,6 +481,27 @@ function showErr(msg){
 }
 function hideErr(){ $('errBanner').classList.remove('on'); }
 
+/* 网络不可用时的诊断横幅：区分「8510 没启动」与「服务在跑但上游没数据」 */
+function showNetBlocked(){
+  const relayUp = RLY.ok === true;
+  const head = relayUp
+    ? '<b>本地中转在跑，但行情接口没有返回数据。</b>（服务可达、上游被拦截或临时限流）'
+    : '<b>行情网络未打通：直连被当前窗口拦截，本机中转 127.0.0.1:8510 未启动。</b>';
+  const body = relayUp
+    ? '确认 news-live 进程没报错，或稍后点「重新检测」。'
+    : '双击 <b>启动选股器.bat</b>（会顺带拉起 8510 中转服务并打开本页）。服务起来后本页会 <b>自动恢复并开始选股</b>，不用刷新。';
+  $('errBanner').innerHTML = head +
+    '<div style="margin-top:6px">' + body + '</div>' +
+    '<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+      '<span class="livdot"></span>' +
+      '<span class="num" style="font-size:11px;color:var(--dim2)">每 8 秒自动检测 127.0.0.1:8510…</span>' +
+      '<button class="copy-btn" id="retryBtn2" style="margin-left:0">立即重试</button>' +
+    '</div>';
+  $('errBanner').classList.add('on');
+  const b = $('retryBtn2');
+  if (b) b.addEventListener('click', function(){ hideErr(); runPick(); });
+}
+
 function parseKlines(raw){
   if (!raw || !raw.klines || !raw.klines.length) return null;
   const out = [];
@@ -557,8 +580,8 @@ async function runPick(){
   /* 某板块基准指数取不到 → 借用上证；一个都取不到 → 报错 */
   if (!gotAny){
     $('goBtn').disabled = false;
-    showErr('<b>无法访问行情服务器。</b>行情接口直连与本地中转均不可用。<br>请先双击 <b>打开仪表盘.bat</b>（会自动启动 127.0.0.1:8510 本地中转服务），然后回到本页重新点「开始选股」。');
-    setProg(0, '网络不可用');
+    setProg(0, '行情网络未打通');
+    showNetBlocked();
     return;
   }
   selBoards.forEach(function(b){
@@ -768,15 +791,42 @@ function tick(){
   $('clock').textContent = new Date().toLocaleTimeString('zh-CN', { hour12:false });
 }
 tick(); setInterval(tick, 1000);
-(async function probeNet(){
+
+function updateNetChip(){
   const chip = $('netChip');
+  chip.classList.remove('on', 'warn');
+  if (NET.direct === true){ chip.textContent = '直连行情 · 正常'; chip.classList.add('on'); return; }
+  if (RLY.ok){ chip.textContent = '本地中转 · 正常'; chip.classList.add('on'); return; }
+  chip.textContent = '待启动中转 · 8510'; chip.classList.add('warn');
+}
+
+/* 中转没起来时，页面每 8 秒自己探一次：bat 一启动，这里立刻恢复，不用刷新 */
+async function relayWatch(){
+  if (RLY.ok) return;
+  if (document.hidden) return;
+  RLY.nextTry = 0;                     /* 放开 rlyProbe 的 20s 冷却 */
+  const ok = await rlyProbe();
+  updateNetChip();
+  if (!ok) return;
+  const b = $('errBanner');
+  if (b.classList.contains('on')){
+    b.innerHTML = '<b>本地中转已就绪。</b>正在自动重新选股…';
+    $('goBtn').disabled = false;
+    setTimeout(runPick, 700);
+  }
+}
+setInterval(relayWatch, 8000);
+
+(async function probeNet(){
   const tryUrls = ['http://push2.eastmoney.com/api/qt/ulist.np/get?ut=' + UT + '&fields=f1&secids=1.000001'];
   let direct = false;
   try { await jsonp(tryUrls[0], 6000); direct = true; } catch(e){ direct = false; }
-  if (direct){ chip.textContent = '直连行情 · 正常'; chip.classList.add('on'); NET.direct = true; return; }
-  if (await rlyProbe()){ chip.textContent = '本地中转 · 正常'; chip.classList.add('on'); return; }
-  chip.textContent = '行情网络 · 不通'; chip.classList.add('warn');
+  if (direct) NET.direct = true;
+  else await rlyProbe();
+  updateNetChip();
 })();
+
+$('retryBtn') && $('retryBtn').addEventListener('click', function(){ relayWatch(); runPick(); });
 
 /* ?auto=1 → 自动跑一轮（自检 / 无头验证用） */
 if (/[?&]auto=1\b/.test(location.search)){
