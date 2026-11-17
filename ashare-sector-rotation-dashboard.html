@@ -2329,6 +2329,24 @@ function bollAt(bars, period, mult){
   const sd = Math.sqrt(v / period);
   return { mid, up: mid + mult * sd, dn: mid - mult * sd };
 }
+/* 布林带全序列（BOLL(20,2)，前 period-1 根为 NaN；前缀和 O(n)） */
+function bollSeries(bars, period, mult){
+  period = period || 20; mult = mult || 2;
+  const n = bars.length;
+  const up = [], mid = [], dn = [];
+  let sum = 0, sum2 = 0;
+  for (let i = 0; i < n; i++){
+    const c = bars[i].c;
+    sum += c; sum2 += c * c;
+    if (i >= period){ const o = bars[i - period].c; sum -= o; sum2 -= o * o; }
+    if (i >= period - 1){
+      const m = sum / period;
+      const sd = Math.sqrt(Math.max(0, sum2 / period - m * m));
+      mid.push(m); up.push(m + mult * sd); dn.push(m - mult * sd);
+    } else { mid.push(NaN); up.push(NaN); dn.push(NaN); }
+  }
+  return { up: up, mid: mid, dn: dn };
+}
 
 /* ==========================================================================
    7. 压力位 / 支撑位引擎
@@ -2568,6 +2586,61 @@ function drawKline(){
     ctx.fillText(view[i].d.slice(2), xc(i), kdjB + 11);
   }
 
+  /* 布林带 BOLL(20,2) —— 主图叠加（裁剪在主图区域内） */
+  const bser = bollSeries(bars);
+  const off1 = bars.length - view.length;
+  const vbu = [], vbm = [], vbd = [];
+  for (let i = 0; i < view.length; i++){
+    vbu.push(bser.up[off1 + i]); vbm.push(bser.mid[off1 + i]); vbd.push(bser.dn[off1 + i]);
+  }
+  ctx.save();
+  ctx.beginPath(); ctx.rect(L, mainT, R - L, mainB - mainT); ctx.clip();
+  /* 通道填充 */
+  ctx.beginPath();
+  let bandStart = false;
+  for (let i = 0; i < view.length; i++){
+    if (!isFinite(vbu[i])) continue;
+    const xx = xc(i), yy = y(vbu[i]);
+    if (!bandStart){ ctx.moveTo(xx, yy); bandStart = true; } else ctx.lineTo(xx, yy);
+  }
+  if (bandStart){
+    for (let i = view.length - 1; i >= 0; i--){
+      if (!isFinite(vbd[i])) continue;
+      ctx.lineTo(xc(i), y(vbd[i]));
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(167,139,250,.05)';
+    ctx.fill();
+  }
+  /* 三轨 */
+  const bollLine = function(arr, col, dash){
+    ctx.beginPath(); let stB = false;
+    for (let i = 0; i < view.length; i++){
+      const v = arr[i];
+      if (!isFinite(v)) continue;
+      const xx = xc(i), yy = y(v);
+      if (!stB){ ctx.moveTo(xx, yy); stB = true; } else ctx.lineTo(xx, yy);
+    }
+    ctx.strokeStyle = col; ctx.lineWidth = 1;
+    if (dash) ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  };
+  bollLine(vbu, 'rgba(255,120,130,.55)', false);
+  bollLine(vbm, 'rgba(255,255,255,.35)', true);
+  bollLine(vbd, 'rgba(80,220,170,.55)', false);
+  ctx.restore();
+  /* 左上角标签 + 末值 */
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'left';
+  const lastB = view.length - 1;
+  if (isFinite(vbu[lastB])){
+    ctx.fillStyle = '#3f4b5c'; ctx.fillText('BOLL(20,2)', L + 2, mainT + 2);
+    ctx.fillStyle = '#ff8a93'; ctx.fillText('上 ' + vbu[lastB].toFixed(dec), L + 62, mainT + 2);
+    ctx.fillStyle = '#cdd6e4'; ctx.fillText('中 ' + vbm[lastB].toFixed(dec), L + 128, mainT + 2);
+    ctx.fillStyle = '#57d9a9'; ctx.fillText('下 ' + vbd[lastB].toFixed(dec), L + 194, mainT + 2);
+  }
+
   /* 均线 */
   const maDef = [[5,'rgba(245,185,59,.85)'],[10,'rgba(34,211,238,.8)'],[20,'rgba(167,139,250,.85)'],[60,'rgba(255,255,255,.45)']];
   maDef.forEach(function(def){
@@ -2783,7 +2856,7 @@ function drawKline(){
 
   state._geom = { L: L, R: R, mainT: mainT, mainB: mainB, volT: volT, volB: volB,
                   macdT: macdT, macdB: macdB, kdjT: kdjT, kdjB: kdjB, bw: bw, view: view, xc: xc, dec: dec,
-                  ind: { dif: vdif, dea: vdea, bar: vbar, k: vk, d: vv2, j: vj } };
+                  ind: { dif: vdif, dea: vdea, bar: vbar, k: vk, d: vv2, j: vj, bu: vbu, bm: vbm, bd: vbd } };
 }
 
 function bindCross(){
@@ -2826,6 +2899,10 @@ function bindCross(){
     const up = chg >= 0;
     const ii = g.ind || null;
     let indHtml = '';
+    if (ii && isFinite(ii.bu[i])){
+      indHtml +=
+        '<div>BOLL <b style="color:#ff8a93">' + ii.bu[i].toFixed(g.dec) + '</b> <b style="color:#cdd6e4">' + ii.bm[i].toFixed(g.dec) + '</b> <b style="color:#57d9a9">' + ii.bd[i].toFixed(g.dec) + '</b></div>';
+    }
     if (ii && isFinite(ii.dif[i]) && isFinite(ii.dif[i])){
       const mb = ii.bar[i];
       indHtml +=
@@ -3263,7 +3340,7 @@ async function refreshSectors(){
    预览面板等嵌入环境可能限制外部脚本/请求；一旦全源不通，明确告知原因，
    而不是让用户以为页面坏了。
    ========================================================================== */
-const BUILD_TAG = 'BUILD 11-17 23:32';
+const BUILD_TAG = 'BUILD 11-17 23:38';
 let envChecked = false, envRunning = false;
 
 function selfPath(){
