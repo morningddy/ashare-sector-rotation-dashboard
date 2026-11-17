@@ -2449,7 +2449,38 @@ function analyzeLevels(bars){
 /* ==========================================================================
    8. 绘制
    ========================================================================== */
-const CV = { padL: 6, padR: 74, padT: 20, padB: 20, mainH: 292, volH: 84, gap: 14 };
+const CV = { padL: 6, padR: 74, padT: 20, padB: 20, mainH: 292, volH: 84, macdH: 72, kdjH: 72, gap: 14, subGap: 14 };
+
+/* MACD(12,26,9) / KDJ(9,3,3) 全序列计算（画副图与十字线共用） */
+function macdSeries(bars){
+  const dif = [], dea = [], bar = [];
+  const k12 = 2 / 13, k26 = 2 / 27, k9 = 2 / 10;
+  let e12 = bars.length ? bars[0].c : 0, e26 = e12, d = 0;
+  for (let i = 0; i < bars.length; i++){
+    const c = bars[i].c;
+    e12 = i ? c * k12 + e12 * (1 - k12) : c;
+    e26 = i ? c * k26 + e26 * (1 - k26) : c;
+    d = i ? (e12 - e26) * k9 + d * (1 - k9) : (e12 - e26);
+    dif.push(e12 - e26); dea.push(d); bar.push((e12 - e26 - d) * 2);
+  }
+  return { dif: dif, dea: dea, bar: bar };
+}
+function kdjSeries(bars){
+  const K = [], D = [], J = [];
+  let k = 50, d = 50;
+  for (let i = 0; i < bars.length; i++){
+    let hh = -Infinity, ll = Infinity;
+    for (let j = Math.max(0, i - 8); j <= i; j++){
+      if (bars[j].h > hh) hh = bars[j].h;
+      if (bars[j].l < ll) ll = bars[j].l;
+    }
+    const rsv = hh > ll ? (bars[i].c - ll) / (hh - ll) * 100 : 50;
+    k = k * 2 / 3 + rsv / 3;
+    d = d * 2 / 3 + k / 3;
+    K.push(k); D.push(d); J.push(3 * k - 2 * d);
+  }
+  return { k: K, d: D, j: J };
+}
 
 function chartEmpty(msg, sub){
   const el = document.getElementById('chartEmpty');
@@ -2473,7 +2504,7 @@ function drawKline(){
   const view = bars.slice(Math.max(0, bars.length - state.showN));
   const hostW = cv.parentElement.clientWidth || 900;
   const plotW = Math.max(160, hostW - CV.padL - CV.padR);
-  const cssH = CV.padT + CV.mainH + CV.gap + CV.volH + CV.padB;
+  const cssH = CV.padT + CV.mainH + CV.gap + CV.volH + CV.subGap + CV.macdH + CV.subGap + CV.kdjH + CV.padB;
   const dpr = window.devicePixelRatio || 1;
   const totalW = plotW + CV.padL + CV.padR;
 
@@ -2488,6 +2519,8 @@ function drawKline(){
   const L = CV.padL, R = CV.padL + plotW;
   const mainT = CV.padT, mainB = CV.padT + CV.mainH;
   const volT = mainB + CV.gap, volB = volT + CV.volH;
+  const macdT = volB + CV.subGap, macdB = macdT + CV.macdH;
+  const kdjT = macdB + CV.subGap, kdjB = kdjT + CV.kdjH;
 
   let hi = -Infinity, lo = Infinity;
   view.forEach(function(b){ if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l; });
@@ -2532,7 +2565,7 @@ function drawKline(){
   ctx.fillStyle = '#4a5768';
   const tStep = Math.max(1, Math.floor(view.length / 5));
   for (let i = 0; i < view.length; i += tStep){
-    ctx.fillText(view[i].d.slice(2), xc(i), volB + 11);
+    ctx.fillText(view[i].d.slice(2), xc(i), kdjB + 11);
   }
 
   /* 均线 */
@@ -2636,6 +2669,108 @@ function drawKline(){
   ctx.textAlign = 'left';
   ctx.fillText('VOL', L + 2, volT + 2);
 
+  /* ===== MACD 副图（12,26,9） ===== */
+  const mser = macdSeries(bars), kser = kdjSeries(bars);
+  const off2 = bars.length - view.length;
+  const vdif = [], vdea = [], vbar = [], vk = [], vv2 = [], vj = [];
+  let mMax = 0, mMin = 0, kMax = 20, kMin = 80;
+  for (let i = 0; i < view.length; i++){
+    const gi = off2 + i;
+    const dv = mser.dif[gi], ev = mser.dea[gi], bv = mser.bar[gi];
+    vdif.push(dv); vdea.push(ev); vbar.push(bv);
+    if (isFinite(dv) && isFinite(bv)){
+      if (dv > mMax) mMax = dv; if (dv < mMin) mMin = dv;
+      if (ev > mMax) mMax = ev; if (ev < mMin) mMin = ev;
+      if (bv > mMax) mMax = bv; if (bv < mMin) mMin = bv;
+    }
+    vk.push(kser.k[gi]); vv2.push(kser.d[gi]); vj.push(kser.j[gi]);
+    if (isFinite(kser.k[gi])){ if (kser.k[gi] > kMax) kMax = kser.k[gi]; if (kser.k[gi] < kMin) kMin = kser.k[gi]; }
+    if (isFinite(kser.j[gi])){ if (kser.j[gi] > kMax) kMax = kser.j[gi]; if (kser.j[gi] < kMin) kMin = kser.j[gi]; }
+  }
+  const mRng = (mMax - mMin) || 1;
+  const myy = function(v){ return macdB - (v - mMin) / mRng * (macdB - macdT); };
+  /* 零轴 */
+  ctx.strokeStyle = 'rgba(255,255,255,.08)';
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(L, myy(0)); ctx.lineTo(R, myy(0)); ctx.stroke();
+  ctx.setLineDash([]);
+  /* 柱：红=多头柱（bar≥0），绿=空头柱 */
+  const bw2 = Math.max(1, cw * 0.7);
+  for (let i = 0; i < view.length; i++){
+    const bv = vbar[i];
+    if (!isFinite(bv)) continue;
+    const y0 = myy(0), y1 = myy(bv);
+    ctx.fillStyle = bv >= 0 ? 'rgba(255,77,90,.7)' : 'rgba(0,200,150,.65)';
+    ctx.fillRect(xc(i) - bw2 / 2, Math.min(y0, y1), bw2, Math.max(1, Math.abs(y1 - y0)));
+  }
+  /* DIF / DEA 线 */
+  const lineAt = function(arr, col, yfn){
+    ctx.beginPath(); let st2 = false;
+    for (let i = 0; i < view.length; i++){
+      const v = arr[i];
+      if (!isFinite(v)) continue;
+      const xx = xc(i), yy = yfn(v);
+      if (!st2){ ctx.moveTo(xx, yy); st2 = true; } else ctx.lineTo(xx, yy);
+    }
+    ctx.strokeStyle = col; ctx.lineWidth = 1.1; ctx.stroke();
+  };
+  lineAt(vdif, '#f5b93b', myy);
+  lineAt(vdea, '#e879f9', myy);
+  ctx.strokeStyle = 'rgba(255,255,255,.045)';
+  ctx.beginPath(); ctx.moveTo(L, macdB); ctx.lineTo(R, macdB); ctx.stroke();
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#3f4b5c';
+  ctx.fillText('MACD(12,26,9)', L + 2, macdT + 2);
+  const lastM = view.length - 1;
+  if (isFinite(vdif[lastM])){
+    const lb = vbar[lastM];
+    ctx.fillStyle = '#f5b93b'; ctx.fillText('DIF ' + vdif[lastM].toFixed(2), L + 78, macdT + 2);
+    ctx.fillStyle = '#e879f9'; ctx.fillText('DEA ' + vdea[lastM].toFixed(2), L + 148, macdT + 2);
+    ctx.fillStyle = lb >= 0 ? '#ff6b74' : '#4fd8aa';
+    ctx.fillText('MACD ' + lb.toFixed(2), L + 218, macdT + 2);
+  }
+  /* 右轴刻度 */
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#54637a';
+  ctx.fillText(mMax.toFixed(2), R + 66, macdT + 4);
+  ctx.fillText('0.00', R + 66, myy(0));
+  ctx.fillText(mMin.toFixed(2), R + 66, macdB - 4);
+
+  /* ===== KDJ 副图（9,3,3） ===== */
+  const kPad = (kMax - kMin) * 0.12 || 8;
+  const kLo = kMin - kPad, kHi2 = kMax + kPad, kRng = (kHi2 - kLo) || 1;
+  const kyy = function(v){ return kdjB - (v - kLo) / kRng * (kdjB - kdjT); };
+  /* 80 / 20 参考线 */
+  ctx.strokeStyle = 'rgba(255,255,255,.06)';
+  ctx.setLineDash([4, 4]);
+  [80, 20].forEach(function(lv){
+    const yy = kyy(lv);
+    if (yy < kdjT || yy > kdjB) return;
+    ctx.beginPath(); ctx.moveTo(L, yy); ctx.lineTo(R, yy); ctx.stroke();
+    ctx.fillStyle = '#4a5768'; ctx.textAlign = 'right';
+    ctx.fillText(String(lv), R + 66, yy);
+  });
+  ctx.setLineDash([]);
+  lineAt(vk, '#f5b93b', kyy);
+  lineAt(vv2, '#22d3ee', kyy);
+  lineAt(vj, '#a78bfa', kyy);
+  ctx.strokeStyle = 'rgba(255,255,255,.045)';
+  ctx.beginPath(); ctx.moveTo(L, kdjB); ctx.lineTo(R, kdjB); ctx.stroke();
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#3f4b5c';
+  ctx.fillText('KDJ(9,3,3)', L + 2, kdjT + 2);
+  if (isFinite(vk[lastM])){
+    ctx.fillStyle = '#f5b93b'; ctx.fillText('K ' + vk[lastM].toFixed(1), L + 68, kdjT + 2);
+    ctx.fillStyle = '#22d3ee'; ctx.fillText('D ' + vv2[lastM].toFixed(1), L + 118, kdjT + 2);
+    ctx.fillStyle = '#a78bfa'; ctx.fillText('J ' + vj[lastM].toFixed(1), L + 168, kdjT + 2);
+  }
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#54637a';
+  ctx.fillText(kHi2.toFixed(0), R + 66, kdjT + 4);
+  ctx.fillText(kLo.toFixed(0), R + 66, kdjB - 4);
+
   /* 重置 overlay */
   const kc = $('kcross');
   if (kc){
@@ -2646,7 +2781,9 @@ function drawKline(){
     kx.clearRect(0, 0, totalW, cssH);
   }
 
-  state._geom = { L: L, R: R, mainT: mainT, mainB: mainB, volT: volT, volB: volB, bw: bw, view: view, xc: xc, dec: dec };
+  state._geom = { L: L, R: R, mainT: mainT, mainB: mainB, volT: volT, volB: volB,
+                  macdT: macdT, macdB: macdB, kdjT: kdjT, kdjB: kdjB, bw: bw, view: view, xc: xc, dec: dec,
+                  ind: { dif: vdif, dea: vdea, bar: vbar, k: vk, d: vv2, j: vj } };
 }
 
 function bindCross(){
@@ -2665,7 +2802,7 @@ function bindCross(){
     const rect = cv.getBoundingClientRect();
     const mx = ev.clientX - rect.left;
     const my = ev.clientY - rect.top;
-    if (mx < g.L || mx > g.R || my < g.mainT || my > g.volB){ clear(); return; }
+    if (mx < g.L || mx > g.R || my < g.mainT || my > g.kdjB){ clear(); return; }
 
     const i = clamp(Math.floor((mx - g.L) / g.bw), 0, g.view.length - 1);
     const b = g.view[i];
@@ -2681,17 +2818,26 @@ function bindCross(){
     ctx.setLineDash([3, 3]);
     ctx.strokeStyle = 'rgba(255,255,255,.26)';
     ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(xx, g.mainT); ctx.lineTo(xx, g.volB); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xx, g.mainT); ctx.lineTo(xx, g.kdjB); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(g.L, my); ctx.lineTo(g.R, my); ctx.stroke();
     ctx.restore();
 
     const chg = (b.c / b.o - 1) * 100;
     const up = chg >= 0;
+    const ii = g.ind || null;
+    let indHtml = '';
+    if (ii && isFinite(ii.dif[i]) && isFinite(ii.dif[i])){
+      const mb = ii.bar[i];
+      indHtml +=
+        '<div>MACD <b style="color:#f5b93b">' + ii.dif[i].toFixed(2) + '</b> <b style="color:#e879f9">' + ii.dea[i].toFixed(2) + '</b> <b class="' + (mb >= 0 ? 'r' : 'g') + '">' + mb.toFixed(2) + '</b></div>' +
+        '<div>KDJ <b style="color:#f5b93b">' + ii.k[i].toFixed(1) + '</b> <b style="color:#22d3ee">' + ii.d[i].toFixed(1) + '</b> <b style="color:#a78bfa">' + ii.j[i].toFixed(1) + '</b></div>';
+    }
     tip.innerHTML =
       '<div style="color:#8291a6;margin-bottom:3px">' + b.d + '</div>' +
       '<div>开 <b>' + b.o.toFixed(g.dec) + '</b>　高 <b>' + b.h.toFixed(g.dec) + '</b></div>' +
       '<div>低 <b>' + b.l.toFixed(g.dec) + '</b>　收 <b class="' + (up?'r':'g') + '">' + b.c.toFixed(g.dec) + '</b></div>' +
-      '<div>实体 <b class="' + (up?'r':'g') + '">' + fmt(chg) + '%</b>　量 <b>' + (b.v/10000).toFixed(2) + '万手</b></div>';
+      '<div>实体 <b class="' + (up?'r':'g') + '">' + fmt(chg) + '%</b>　量 <b>' + (b.v/10000).toFixed(2) + '万手</b></div>' +
+      indHtml;
     tip.style.display = 'block';
     const tw = 150;
     let left = mx + 14;
@@ -3117,7 +3263,7 @@ async function refreshSectors(){
    预览面板等嵌入环境可能限制外部脚本/请求；一旦全源不通，明确告知原因，
    而不是让用户以为页面坏了。
    ========================================================================== */
-const BUILD_TAG = 'BUILD 11-17 23:06';
+const BUILD_TAG = 'BUILD 11-17 23:32';
 let envChecked = false, envRunning = false;
 
 function selfPath(){
